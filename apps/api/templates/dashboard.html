@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}TelePC Dashboard{% endblock %}
+{% block content %}
+<section class="page-head">
+  <h1>Dashboard</h1>
+  <button id="refresh">Refresh</button>
+</section>
+<section class="metrics">
+  <article><span id="online-count">0</span><small>Online machines</small></article>
+  <article><span id="offline-count">0</span><small>Offline machines</small></article>
+  <article><span id="active-count">0</span><small>Active sessions</small></article>
+  <article><span id="recent-count">0</span><small>Recent actions</small></article>
+</section>
+<section>
+  <h2>Machines</h2>
+  <div id="machine-list" class="table-list"></div>
+</section>
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}
+

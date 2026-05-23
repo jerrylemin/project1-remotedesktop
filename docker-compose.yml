@@ -1,0 +1,18 @@
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "pip install -r requirements.txt && python scripts/run_api.py"
+    ports:
+      - "8000:8000"
+  relay:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "pip install -r requirements.txt && python scripts/run_relay.py"
+    ports:
+      - "8001:8001"
+

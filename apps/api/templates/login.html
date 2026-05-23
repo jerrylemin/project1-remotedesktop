@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TelePC Login</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="login-page">
+  <form class="login-box" id="login-form" method="post" action="/admin/login">
+    <h1>TelePC</h1>
+    <label>Username <input name="username" autocomplete="username" required></label>
+    <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit">Sign in</button>
+  </form>
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({username: form.get("username"), password: form.get("password")})
+      });
+      if (!res.ok) return alert("Invalid credentials");
+      const data = await res.json();
+      localStorage.setItem("telepc_token", data.access_token);
+      location.href = "/admin/dashboard";
+    });
+  </script>
+</body>
+</html>

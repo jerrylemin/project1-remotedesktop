@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}TelePC Machine{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <h1 id="machine-title">Machine</h1>
+    <p id="machine-meta"></p>
+  </div>
+  <div class="actions">
+    <button id="claim-control">Claim Control</button>
+    <button id="release-control">Release</button>
+  </div>
+</section>
+<section class="tabs">
+  <button data-tab="screen" class="active">Remote Screen</button>
+  <button data-tab="processes">Processes</button>
+  <button data-tab="apps">Applications</button>
+  <button data-tab="files">Files Sandbox</button>
+  <button data-tab="webcam">Webcam</button>
+  <button data-tab="audit">Audit Logs</button>
+</section>
+<section id="tab-screen" class="tab-panel active">
+  <div class="toolbar">
+    <button id="start-screen">Start</button>
+    <button id="stop-screen">Stop</button>
+  </div>
+  <img id="remote-screen" class="remote-screen" alt="Remote screen frame">
+</section>
+<section id="tab-processes" class="tab-panel"><button data-command="list_processes">List Processes</button><pre id="process-output"></pre></section>
+<section id="tab-apps" class="tab-panel"><button data-command="list_applications">List Applications</button><pre id="apps-output"></pre></section>
+<section id="tab-files" class="tab-panel"><input id="file-input" type="file"><button id="upload-file">Upload</button><pre id="files-output"></pre></section>
+<section id="tab-webcam" class="tab-panel"><label><input id="webcam-confirm" type="checkbox"> Confirm webcam consent</label><button id="webcam-start">Start Webcam</button><button id="webcam-stop">Stop Webcam</button></section>
+<section id="tab-audit" class="tab-panel"><div id="audit-list" class="audit-list"></div></section>
+<section class="danger">
+  <h2>Danger Zone</h2>
+  <label>Type CONFIRM <input id="danger-confirm" placeholder="CONFIRM"></label>
+  <button data-danger="restart">Restart</button>
+  <button data-danger="shutdown">Shutdown</button>
+</section>
+<aside class="recent-audit">
+  <h2>Recent Audit</h2>
+  <div id="recent-audit"></div>
+</aside>
+<script>window.MACHINE_ID = "{{ machine_id }}";</script>
+<script src="/static/js/machine_detail.js"></script>
+{% endblock %}
+
