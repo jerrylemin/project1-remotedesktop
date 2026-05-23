@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -38,12 +39,23 @@ async def record_audit(
     return event
 
 
-async def list_machine_audit(db: AsyncSession, machine_id: str, limit: int = 100) -> list[AuditEvent]:
-    result = await db.execute(
-        select(AuditEvent)
-        .where(AuditEvent.machine_id == machine_id)
-        .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
-        .limit(limit)
-    )
+async def list_machine_audit(
+    db: AsyncSession,
+    machine_id: str,
+    limit: int = 100,
+    event_type: str | None = None,
+    actor_type: str | None = None,
+    start: datetime | None = None,
+    end: datetime | None = None,
+) -> list[AuditEvent]:
+    stmt = select(AuditEvent).where(AuditEvent.machine_id == machine_id)
+    if event_type:
+        stmt = stmt.where(AuditEvent.event_type == event_type)
+    if actor_type:
+        stmt = stmt.where(AuditEvent.actor_type == actor_type)
+    if start:
+        stmt = stmt.where(AuditEvent.created_at >= start)
+    if end:
+        stmt = stmt.where(AuditEvent.created_at <= end)
+    result = await db.execute(stmt.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(limit))
     return list(result.scalars().all())
-

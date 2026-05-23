@@ -10,7 +10,9 @@ class RelaySettings(BaseSettings):
 
     api_url: str = "http://localhost:8000"
     secret_key: str = "telepc-dev-secret"
+    internal_api_secret: str = "telepc-internal-dev-secret-change-me"
     heartbeat_timeout_seconds: int = 15
+    offline_timeout_seconds: int = 45
     allowed_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
 
     @property
@@ -21,4 +23,3 @@ class RelaySettings(BaseSettings):
 @lru_cache
 def get_relay_settings() -> RelaySettings:
     return RelaySettings()
-

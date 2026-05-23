@@ -6,6 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.config import get_settings
@@ -45,3 +46,12 @@ async def record_dispatch(db: AsyncSession, artifact_id: str, machine_id: str, j
     await db.flush()
     return item
 
+
+async def list_sandbox_files(db: AsyncSession, machine_id: str) -> list[tuple[SandboxFile, Artifact]]:
+    result = await db.execute(
+        select(SandboxFile, Artifact)
+        .join(Artifact, SandboxFile.artifact_id == Artifact.id)
+        .where(SandboxFile.machine_id == machine_id)
+        .order_by(Artifact.created_at.desc())
+    )
+    return list(result.all())

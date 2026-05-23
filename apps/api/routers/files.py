@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.db import get_db
 from apps.api.deps import require_permission
 from apps.api.models import User
+from apps.api.schemas import SandboxFileOut
 from apps.api.services.audit import record_audit
-from apps.api.services.file import record_dispatch, store_upload
+from apps.api.services.file import list_sandbox_files, record_dispatch, store_upload
 from shared.enums import Permission
 
 router = APIRouter(prefix="/api/files", tags=["files"])
@@ -41,3 +42,24 @@ async def dispatch_file(
     await db.commit()
     return {"job_id": job_id, "sandbox_path": sandbox_path}
 
+
+@router.get("/machines/{machine_id}", response_model=list[SandboxFileOut])
+async def machine_files(
+    machine_id: str,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_permission(Permission.FILES_DOWNLOAD)),
+) -> list[SandboxFileOut]:
+    rows = await list_sandbox_files(db, machine_id)
+    return [
+        SandboxFileOut(
+            artifact_id=artifact.id,
+            filename=artifact.filename,
+            size=artifact.size,
+            sha256=artifact.sha256,
+            uploaded_at=artifact.created_at,
+            machine_id=item.machine_id,
+            job_id=item.job_id,
+            sandbox_path=item.sandbox_path,
+        )
+        for item, artifact in rows
+    ]

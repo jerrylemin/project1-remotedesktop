@@ -2,18 +2,24 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from apps.api.security import create_access_token
 from apps.relay.main import app
 from shared.protocol import make_envelope
 
 
-def test_fake_agent_frame_forwarded() -> None:
-    token = create_access_token("admin", {"uid": 1})
+def test_fake_agent_frame_forwarded(monkeypatch) -> None:
+    async def fake_validate(ticket: str):
+        return {"user_id": 1, "username": "admin", "can_control": True, "permissions": ["machines:control"]}
+
+    async def noop_status(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
+    monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
     with TestClient(app) as client:
         with client.websocket_connect("/ws/agent") as agent, client.websocket_connect("/ws/admin") as admin:
             agent.send_json(make_envelope("auth", machine_id="m1", payload={"machine_id": "m1", "machine_secret": "secret"}))
             assert agent.receive_json()["type"] == "ack"
-            admin.send_json(make_envelope("auth", payload={"token": token}))
+            admin.send_json(make_envelope("auth", payload={"ws_ticket": "ticket"}))
             assert admin.receive_json()["type"] == "ack"
             admin.send_json(make_envelope("subscribe_machine", machine_id="m1", payload={"control": False}))
             assert admin.receive_json()["type"] == "ack"

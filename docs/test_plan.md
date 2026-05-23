@@ -18,6 +18,12 @@ Integration coverage:
 - Per-machine audit logs newest first.
 - File upload, dispatch, and job record flow.
 - Relay fake agent frame forwarding.
+- Real-agent optional dependency fallback.
+- Relay audit bridge queueing.
+- Machine status transitions.
+- WS ticket auth and controller/observer enforcement.
+- Audit machine filters.
+- Sandbox job history.
 
 Commands:
 
@@ -26,3 +32,4 @@ python -m compileall .
 pytest -q
 ```
 
+Latest result: `35 passed`.

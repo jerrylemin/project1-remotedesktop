@@ -13,14 +13,17 @@
 - Process/application listing helpers with allowlist enforcement.
 - Jinja admin UI pages for dashboard, machines, machine detail tabs, audit, files, webcam, and danger zone.
 - Docs and tests.
+- WebSocket auth hardened with short-lived single-use tickets from HttpOnly session.
+- Relay internal API secret and background audit bridge.
+- Persisted machine online/stale/offline status transitions.
+- Provider abstractions for real/fake/fallback agent operations.
+- Multi-machine fake demo script.
 
 ## Partial / Demo-Level
 
-- Real agent uses optional libraries (`mss`, `psutil`, etc.) when installed; fake mode is the verified path.
-- Browser WebSocket token handling is basic; API endpoints are tested with bearer tokens.
-- Relay audit bridge is a non-blocking stub ready for an internal API endpoint.
+- Real agent optional dependency fallback is tested, but physical Windows lab validation is still pending.
 
 ## Verification
 
 - `python -m compileall .` passed.
-- `pytest -q` passed: 21 tests.
+- `pytest -q` passed: 35 tests.

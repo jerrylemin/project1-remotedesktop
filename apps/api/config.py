@@ -12,7 +12,9 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./telepc.db"
     secret_key: str = "telepc-dev-secret-change-me-32-bytes-minimum"
+    internal_api_secret: str = "telepc-internal-dev-secret-change-me"
     access_token_expire_minutes: int = 480
+    ws_ticket_ttl_seconds: int = 60
     artifact_root: Path = Path("./artifacts")
     max_upload_size: int = 5 * 1024 * 1024
     allowed_upload_ext: str = ".py,.ps1,.sh,.cmd,.txt,.csv,.json"

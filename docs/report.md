@@ -16,15 +16,18 @@ Functional requirements include multi-machine listing, enrollment, control sessi
 
 The API server owns persistent state and HTML pages. The relay owns transient WebSocket connection state and controller locks. The agent owns machine-local actions and sandbox path enforcement.
 
+The hardened design adds short-lived WebSocket tickets so the browser does not expose long-lived admin tokens to JavaScript. Relay-to-API calls use an internal shared secret. Relay audit writes are sent through a background queue so audit failures cannot break active WebSocket sessions. Machine status is persisted through explicit online, stale, and offline transitions.
+
 ## Chapter 5: Implementation
 
 The project uses Python 3.11, FastAPI, SQLAlchemy async, Jinja2, WebSocket relay endpoints, and a Python agent. Shared Pydantic envelopes keep relay protocol messages consistent.
 
+The agent now uses provider abstractions for screen capture, process operations, application launch, webcam, input, and sandbox jobs. Each provider has fake and real implementations, and real providers return clear errors when optional Windows dependencies are missing. The UI includes machine audit filters and sandbox/job history views.
+
 ## Chapter 6: Testing
 
-The test suite contains 21 tests covering auth, ACL, protocol validation, sandbox defense, audit redaction, command policy, enrollment, machine listing, session lock, audit order, file/job flow, and relay frame forwarding.
+The test suite contains 35 tests covering auth, ACL, protocol validation, sandbox defense, audit redaction, command policy, enrollment, machine listing, session lock, audit order, file/job flow, relay frame forwarding, WS ticket auth, observer/controller enforcement, relay audit bridge queueing, status transitions, optional dependency fallback, audit filters, and job history.
 
 ## Chapter 7: Conclusion
 
 TelePC is runnable as a local lab demo with API, relay, and fake agent. Remaining work is mainly production hardening: persisted heartbeat status, internal audit bridge persistence, stronger browser WS ticket flow, and broader real-agent validation.
-

@@ -27,3 +27,8 @@ async def finish_job(db: AsyncSession, job: Job, stdout: str, stderr: str, exit_
 
 async def get_job(db: AsyncSession, job_id: str) -> Job | None:
     return await db.scalar(select(Job).where(Job.id == job_id))
+
+
+async def list_jobs_for_machine(db: AsyncSession, machine_id: str) -> list[Job]:
+    result = await db.execute(select(Job).where(Job.machine_id == machine_id).order_by(Job.started_at.desc()))
+    return list(result.scalars().all())

@@ -64,6 +64,18 @@ class AuditOut(BaseModel):
     created_at: datetime
 
 
+class SandboxFileOut(BaseModel):
+    artifact_id: str
+    filename: str
+    size: int
+    sha256: str
+    uploaded_at: datetime
+    machine_id: str
+    job_id: str
+    sandbox_path: str
+    dispatched_status: str = "dispatched"
+
+
 class JobCreateIn(BaseModel):
     machine_id: str
     command: str
@@ -83,3 +95,9 @@ class JobOut(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
 
+
+class JobHistoryOut(JobOut):
+    status: str
+    duration_seconds: float | None
+    stdout_preview: str
+    stderr_preview: str

@@ -33,6 +33,10 @@ button.loading { opacity: .65; }
 .tab-panel { display: none; margin-bottom: 12px; }
 .tab-panel.active { display: block; }
 .toolbar, .actions { display: flex; gap: 8px; align-items: center; }
+.filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.audit-list { display: grid; gap: 8px; }
+.audit-item { border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: #fff; }
+.audit-item pre { margin-bottom: 0; max-height: 180px; }
 .remote-screen { display: block; width: min(100%, 960px); aspect-ratio: 16 / 9; background: #101820; object-fit: contain; border: 1px solid var(--line); }
 pre { white-space: pre-wrap; overflow: auto; background: #101820; color: #e9eef2; padding: 12px; border-radius: 6px; }
 .recent-audit { margin-top: 12px; }
@@ -44,5 +48,5 @@ input { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius:
   .content { margin-left: 0; padding: 14px; }
   .metrics, .table-row { grid-template-columns: 1fr; }
   .page-head { align-items: flex-start; flex-direction: column; }
+  .filters { grid-template-columns: 1fr; }
 }
-

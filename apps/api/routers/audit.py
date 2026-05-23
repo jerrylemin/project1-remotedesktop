@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.db import get_db
@@ -16,6 +18,10 @@ router = APIRouter(prefix="/api", tags=["audit"])
 @router.get("/machines/{machine_id}/audit", response_model=list[AuditOut])
 async def machine_audit(
     machine_id: str,
+    event_type: str | None = Query(default=None),
+    actor_type: str | None = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_permission(Permission.AUDIT_READ)),
 ) -> list[AuditOut]:
@@ -30,6 +36,5 @@ async def machine_audit(
             metadata_json=item.metadata_json,
             created_at=item.created_at,
         )
-        for item in await list_machine_audit(db, machine_id)
+        for item in await list_machine_audit(db, machine_id, event_type=event_type, actor_type=actor_type, start=start, end=end)
     ]
-

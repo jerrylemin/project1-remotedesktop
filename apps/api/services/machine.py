@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models import EnrollToken, Machine, MachineSecret
+from apps.api.services.audit import record_audit
 from shared.crypto import hash_secret, random_secret, verify_secret
 from shared.time_utils import utc_now
 
@@ -54,3 +55,47 @@ async def list_machines(db: AsyncSession) -> list[Machine]:
 async def get_machine(db: AsyncSession, machine_id: str) -> Machine | None:
     return await db.scalar(select(Machine).where(Machine.machine_id == machine_id))
 
+
+async def upsert_machine_status(
+    db: AsyncSession,
+    *,
+    machine_id: str,
+    status: str,
+    hostname: str | None = None,
+    os_name: str | None = None,
+    username: str | None = None,
+) -> Machine:
+    machine = await get_machine(db, machine_id)
+    if machine is None:
+        machine = Machine(
+            machine_id=machine_id,
+            hostname=hostname or machine_id,
+            os=os_name or "unknown",
+            username=username or "unknown",
+            status=status,
+            last_seen=utc_now() if status == "online" else None,
+        )
+        db.add(machine)
+        previous = None
+    else:
+        previous = machine.status
+        if hostname:
+            machine.hostname = hostname
+        if os_name:
+            machine.os = os_name
+        if username:
+            machine.username = username
+        machine.status = status
+        if status == "online":
+            machine.last_seen = utc_now()
+    if previous != status:
+        await record_audit(
+            db,
+            event_type=f"agent_{status}",
+            summary=f"Agent marked {status}",
+            actor_type="system",
+            machine_id=machine_id,
+            metadata={"previous_status": previous, "new_status": status},
+        )
+    await db.flush()
+    return machine

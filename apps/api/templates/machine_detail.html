@@ -28,9 +28,29 @@
 </section>
 <section id="tab-processes" class="tab-panel"><button data-command="list_processes">List Processes</button><pre id="process-output"></pre></section>
 <section id="tab-apps" class="tab-panel"><button data-command="list_applications">List Applications</button><pre id="apps-output"></pre></section>
-<section id="tab-files" class="tab-panel"><input id="file-input" type="file"><button id="upload-file">Upload</button><pre id="files-output"></pre></section>
+<section id="tab-files" class="tab-panel">
+  <div class="toolbar"><input id="file-input" type="file"><button id="upload-file">Upload</button><button id="refresh-files">Refresh</button></div>
+  <h3>Sandbox Files</h3>
+  <div id="files-output" class="table-list"></div>
+  <h3>Job History</h3>
+  <div id="jobs-output" class="table-list"></div>
+</section>
 <section id="tab-webcam" class="tab-panel"><label><input id="webcam-confirm" type="checkbox"> Confirm webcam consent</label><button id="webcam-start">Start Webcam</button><button id="webcam-stop">Stop Webcam</button></section>
-<section id="tab-audit" class="tab-panel"><div id="audit-list" class="audit-list"></div></section>
+<section id="tab-audit" class="tab-panel">
+  <div class="filters">
+    <input id="audit-event-filter" placeholder="event type">
+    <select id="audit-actor-filter">
+      <option value="">all actors</option>
+      <option value="admin">admin</option>
+      <option value="agent">agent</option>
+      <option value="system">system</option>
+    </select>
+    <input id="audit-start-filter" type="datetime-local">
+    <input id="audit-end-filter" type="datetime-local">
+    <button id="refresh-audit">Refresh Audit</button>
+  </div>
+  <div id="audit-list" class="audit-list"></div>
+</section>
 <section class="danger">
   <h2>Danger Zone</h2>
   <label>Type CONFIRM <input id="danger-confirm" placeholder="CONFIRM"></label>
@@ -44,4 +64,3 @@
 <script>window.MACHINE_ID = "{{ machine_id }}";</script>
 <script src="/static/js/machine_detail.js"></script>
 {% endblock %}
-
