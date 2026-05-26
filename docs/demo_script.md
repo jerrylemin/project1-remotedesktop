@@ -7,6 +7,14 @@ Target length: 5 to 7 minutes.
 1. Start API, relay, and fake agents:
 
    ```powershell
+   py -3.12 main.py
+   ```
+
+   For real test machines, use `py -3.12 main.py --no-agents` on the main machine and run `py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-REAL-01` on the test machine.
+
+   Manual equivalent:
+
+   ```powershell
    py -3.12 scripts/create_admin.py
    py -3.12 scripts/run_api.py
    py -3.12 scripts/run_relay.py

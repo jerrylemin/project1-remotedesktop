@@ -15,6 +15,7 @@ python scripts/run_api.py
 python scripts/run_relay.py
 python scripts/run_fake_agent.py
 python scripts/run_3_fake_agents.py
+py -3.12 main.py
 py -3.12 -m compileall .
 py -3.12 -m pytest -q
 ```
@@ -23,6 +24,7 @@ py -3.12 -m pytest -q
 
 - `py -3.12 -m compileall .`: passed.
 - `py -3.12 -m pytest -q`: passed, `42 passed`.
+- `py -3.12 main.py --no-agents --skip-firewall` plus `py -3.12 client.py --server 127.0.0.1 --machine-id CLIENT-SMOKE-01 --mode fake --connect-timeout 20`: passed; `CLIENT-SMOKE-01` appeared online through `/api/machines`.
 - Default `python` on this machine is Python 3.10. It cannot run the suite because the project requires Python 3.11+ and imports `datetime.UTC`.
 
 ## Final Acceptance Check
@@ -35,6 +37,29 @@ py -3.12 -m pytest -q
 - Fixed final UI wiring issue: command results from the agent are wrapped in `payload.result`, and `apps/api/static/js/machine_detail.js` now unwraps them before rendering Applications, Processes, Webcam, and Power results.
 - Fixed shared topbar title rendering by changing the partial to page variables.
 - Final commit message: `Finalize TelePC demo readiness`; final hash is reported in the session result.
+
+## Startup Wrapper Update
+
+- Added root `main.py`.
+- `py -3.12 main.py` now binds API/relay to `0.0.0.0`, seeds the demo admin, starts the API on port 8000, starts the relay on port 8001, starts the three fake agents, prints local/LAN login URLs, and stops child processes on `Ctrl+C`.
+- Use `py -3.12 main.py --no-agents` to start only API and relay.
+- If API or relay is already listening on the selected ports, `main.py` reuses it and starts only missing services.
+- On Windows, `main.py` best-effort adds inbound firewall rules for TCP `8000` and `8001`; if not running as Administrator it prints a clear note and keeps running.
+- Verified `py -3.12 main.py` smoke startup: `/admin/login` loaded and `LAB-PC-01`, `LAB-PC-02`, and `HOME-PC-01` appeared online after login.
+
+## Test Machine Client Update
+
+- Added root `client.py`.
+- On a test machine, run `py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id <NAME>`.
+- Default mode is `real`; use `--mode fake` for demo-only client behavior.
+- `client.py` waits/retries for API and relay instead of exiting immediately while the main machine is still starting.
+- Real mode warns if optional dependencies for screen/process/webcam are missing.
+- The client remains consent-visible and uses the existing sandbox, audit, relay, and demo-safe power behavior.
+
+## Test Database Update
+
+- `tests/conftest.py` now points pytest at a process-local SQLite database in the Windows temp directory before importing `apps.api.db`.
+- This prevents tests from dropping tables in the runtime `telepc.db` and avoids SQLite disk I/O errors when the repo is running from a network share.
 
 ## Teacher Prototype UI Update
 
@@ -53,7 +78,7 @@ py -3.12 -m pytest -q
 - Agent safety/actions: `apps/agent/commands.py`, `apps/agent/providers.py`.
 - Templates: `apps/api/templates/base.html`, `dashboard.html`, `machines.html`, `machine_detail.html`, `audit.html`, `partials/*`.
 - Static assets: `apps/api/static/css/app.css`, `teacher_dashboard.css`, `teacher_remote_shell.css`, `apps/api/static/js/dashboard.js`, `machines.js`, `machine_detail.js`, `audit.js`, `files.js`, `ws_client.js`.
-- Tests: `tests/integration/test_teacher_ui_routes.py`, `tests/unit/test_process_commands.py`.
+- Tests: `tests/conftest.py`, `tests/integration/test_teacher_ui_routes.py`, `tests/unit/test_process_commands.py`.
 - Docs: `README.md`, `docs/report.md`, `docs/demo_script.md`, `docs/ui_prototype_mapping.md`, `docs/session_handoff.md`, `docs/feature_progress.md`.
 
 ## Next Work

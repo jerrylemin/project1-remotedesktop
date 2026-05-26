@@ -2,15 +2,34 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
+import os
 import sys
+import tempfile
 from pathlib import Path
 from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+TEST_DB_PATH = Path(tempfile.gettempdir()) / f"telepc_pytest_{os.getpid()}.db"
+os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{TEST_DB_PATH.as_posix()}")
+
+for stale_path in (TEST_DB_PATH, TEST_DB_PATH.with_name(f"{TEST_DB_PATH.name}-journal")):
+    try:
+        stale_path.unlink()
+    except FileNotFoundError:
+        pass
+
 from apps.api.db import Base, SessionLocal, engine
 from apps.api.main import app
 from apps.api.services.auth import create_user
+
+
+def pytest_sessionfinish(session, exitstatus):
+    for stale_path in (TEST_DB_PATH, TEST_DB_PATH.with_name(f"{TEST_DB_PATH.name}-journal")):
+        try:
+            stale_path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 @pytest_asyncio.fixture

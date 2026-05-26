@@ -43,6 +43,31 @@ Default demo admin:
 
 ## Run
 
+Fast demo startup, one terminal. By default this listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, seeds the admin, starts the API, starts the relay, and starts three fake demo agents:
+
+```powershell
+python main.py
+```
+
+Windows launcher equivalent:
+
+```powershell
+py -3.12 main.py
+```
+
+Then open `http://localhost:8000/admin/dashboard`.
+
+For a main/controller machine that will control separate test machines, run:
+
+```powershell
+py -3.12 main.py --no-agents
+```
+
+The console prints the LAN URL and a ready-to-copy `client.py` command for test machines. Press `Ctrl+C` in that terminal to stop everything.
+If the API or relay is already running on the selected ports, `main.py` reuses it and starts only the missing pieces.
+
+Manual startup, separate terminals:
+
 Open three terminals:
 
 ```powershell
@@ -74,6 +99,38 @@ py -3.12 scripts/run_3_fake_agents.py
 ```
 
 This connects `LAB-PC-01`, `LAB-PC-02`, and `HOME-PC-01` through the relay.
+
+## Connect a Test Machine
+
+On the main/controller machine, run:
+
+```powershell
+py -3.12 main.py --no-agents
+```
+
+`main.py` listens on the LAN and tries to open Windows Firewall for TCP `8000` and `8001`. If Windows asks for permission, allow Python on the private network. The main console prints the LAN IP. You can also find it manually:
+
+```powershell
+ipconfig
+```
+
+On each authorized test machine, install dependencies and run the client:
+
+```powershell
+py -3.12 -m pip install -r requirements.txt
+py -3.12 -m pip install "mss>=9.0" "psutil>=6.0" "opencv-python>=4.10" "pynput>=1.7"
+py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-REAL-01
+```
+
+If the main machine is still starting, `client.py` waits and retries instead of exiting immediately.
+
+For fake/demo mode on a test machine:
+
+```powershell
+py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-TEST-01 --mode fake
+```
+
+Keep the client console visible and open. The machine will appear in `/admin/machines`; click Manage from the main machine to control it. The real client remains consent-visible, uses sandbox-only file operations, and keeps power actions demo-safe.
 
 ## Auth Flow
 

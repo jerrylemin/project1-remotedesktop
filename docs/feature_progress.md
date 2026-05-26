@@ -26,6 +26,9 @@
 - API and agent deny protected process stops for `lsass.exe`, `winlogon.exe`, `csrss.exe`, `services.exe`, `system`, and `registry`.
 - Power actions require explicit confirmation and a non-empty reason.
 - `docs/ui_prototype_mapping.md` documents how both teacher prototypes map to production files.
+- Root `main.py` starts the complete demo stack from one terminal, binds to LAN by default, reuses already-running API/relay ports, and best-effort opens Windows Firewall for ports 8000/8001.
+- Root `client.py` lets an authorized test machine connect to the main TelePC controller with one command and waits/retries while the main stack starts.
+- Pytest uses a temp SQLite database instead of the runtime `telepc.db`, which keeps tests isolated and reliable on network-share workspaces.
 
 ## Partial / Demo-Level
 
@@ -35,4 +38,5 @@
 
 - `py -3.12 -m compileall .` passed.
 - `py -3.12 -m pytest -q` passed: 42 tests.
+- `main.py --no-agents` plus `client.py --mode fake` smoke test passed with the client visible online in `/api/machines`.
 - Default `python` is 3.10 on this workstation; use Python 3.11+ for this repo.
