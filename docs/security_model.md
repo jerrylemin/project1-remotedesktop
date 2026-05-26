@@ -37,5 +37,5 @@ Audit and redaction:
 - Real input is disabled unless `TELEPC_ENABLE_REAL_INPUT=true`; input audit/event summaries never include key characters.
 - Keyboard input is scoped to the Keyboard Demo text box. The browser no longer forwards global page keydown/keyup events, and it waits for the relay to acknowledge the admin as controller before sending key codes.
 - File transfers are sandbox-only. The agent rejects dot segments, absolute paths, drive-letter paths, UNC paths, nested unsafe filenames, symlink escapes, and SHA256 mismatches.
-- Power actions build Windows commands but do not execute them unless `TELEPC_ENABLE_REAL_POWER=true`; restart/shutdown require an audit reason.
+- Power actions build Windows commands but do not execute them unless `TELEPC_ENABLE_REAL_POWER=true`; all power actions require audit confirmation, and restart/shutdown require an audit reason.
 - Audit metadata is redacted for password, token, secret, cookie, and authorization keys before storage.

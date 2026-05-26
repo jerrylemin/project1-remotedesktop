@@ -63,7 +63,11 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
     if action == "run_job":
         return await providers.sandbox.run(machine_id, sandbox_root, command)
     if action == "power":
-        if not command.get("confirm") or not str(command.get("reason") or "").strip():
-            raise PermissionError("power action requires confirmation and reason")
-        return run_power_action(str(command.get("power_action")), str(command.get("reason") or ""))
+        power_action = str(command.get("power_action") or "")
+        reason = str(command.get("reason") or "")
+        if not command.get("confirm"):
+            raise PermissionError("power action requires confirmation")
+        if power_action.lower() in {"restart", "shutdown"} and len(reason.strip()) < 5:
+            raise PermissionError("power action requires reason of at least 5 characters")
+        return run_power_action(power_action, reason)
     raise ValueError(f"unsupported command: {action}")

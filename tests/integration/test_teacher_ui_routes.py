@@ -70,6 +70,18 @@ async def test_power_requires_confirm_and_reason(api_client, admin_token: str) -
     assert accepted.status_code == 200
     assert accepted.json()["command"]["power_action"] == "restart"
 
+    missing_confirm = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "lock"})
+    assert missing_confirm.status_code == 400
+
+    lock = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "lock", "confirm": True})
+    assert lock.status_code == 200
+    assert lock.json()["command"]["power_action"] == "lock"
+    assert lock.json()["command"]["reason"] == "lock workstation"
+
+    cancel = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "cancel", "confirm": True})
+    assert cancel.status_code == 200
+    assert cancel.json()["command"]["power_action"] == "cancel"
+
 
 async def test_sandbox_alias_routes(api_client, admin_token: str) -> None:
     headers = {"Authorization": f"Bearer {admin_token}"}

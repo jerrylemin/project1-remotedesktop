@@ -170,11 +170,14 @@ async function loadAudit() {
   document.getElementById("recent-audit").innerHTML = html;
 }
 
-function openConfirm(title, message) {
+function openConfirm(title, message, { reasonRequired = false } = {}) {
   const modal = document.getElementById("confirm-modal");
+  const reasonField = document.getElementById("confirm-reason");
   document.getElementById("confirm-title").textContent = title;
   document.getElementById("confirm-message").textContent = message;
-  document.getElementById("confirm-reason").value = "";
+  reasonField.value = "";
+  reasonField.required = reasonRequired;
+  reasonField.placeholder = reasonRequired ? "Reason for audit log, at least 5 characters" : "Optional reason for audit log";
   document.getElementById("confirm-check").checked = false;
   modal.showModal();
   return new Promise(resolve => {
@@ -352,10 +355,17 @@ document.getElementById("keyboard-export").addEventListener("click", () => {
 });
 
 document.querySelectorAll("[data-power]").forEach(button => button.addEventListener("click", async () => {
-  const action = button.dataset.power;
-  const decision = await openConfirm("Power control", `${action} requires a reason and audit log entry.`);
-  if (!decision.ok) return;
-  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/power`, { method: "POST", body: JSON.stringify({ action, confirm: decision.confirm, reason: decision.reason }) });
+  try {
+    const action = button.dataset.power;
+    const needsReason = action === "restart" || action === "shutdown";
+    const decision = await openConfirm("Power control", needsReason ? `${action} requires confirmation and a reason of at least 5 characters.` : `${action} requires confirmation and will be audited.`, { reasonRequired: needsReason });
+    if (!decision.ok) return;
+    if (!decision.confirm) throw new Error("Check the audit confirmation box before sending a power action.");
+    if (needsReason && decision.reason.trim().length < 5) throw new Error("Power restart/shutdown requires a reason of at least 5 characters.");
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/power`, { method: "POST", body: JSON.stringify({ action, confirm: true, reason: decision.reason }) });
+  } catch (error) {
+    alert(error.message || error);
+  }
 }));
 
 loadMachine().catch(alert);

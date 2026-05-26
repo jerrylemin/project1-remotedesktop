@@ -228,16 +228,21 @@ async def power_action(
     action = body.action.lower()
     if action not in POWER_ACTIONS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported power action")
-    if action in {"restart", "shutdown"} and len(body.reason.strip()) < 5:
+    reason = body.reason.strip()
+    if action in {"restart", "shutdown"} and len(reason) < 5:
         await record_audit(db, event_type="acl_denied", summary=f"Power {action} denied without confirmation or reason", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"action": action})
         await db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="power action requires reason of at least 5 characters")
-    if action in {"restart", "shutdown"} and not body.confirm:
+    if not body.confirm:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="power action requires confirm")
+    if action == "lock" and not reason:
+        reason = "lock workstation"
+    if action == "cancel" and not reason:
+        reason = "cancel scheduled power action"
     event_type = f"{action}_requested" if action in {"restart", "shutdown"} else "power_cancel_requested" if action == "cancel" else "power_requested"
-    await record_audit(db, event_type=event_type, summary=f"Power action requested: {action}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"action": action, "reason": body.reason})
+    await record_audit(db, event_type=event_type, summary=f"Power action requested: {action}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"action": action, "reason": reason})
     await db.commit()
-    return command_response("power", power_action=action, confirm=True, reason=body.reason)
+    return command_response("power", power_action=action, confirm=True, reason=reason)
 
 
 @router.post("/machines/{machine_id}/file-dispatch", response_model=MachineCommandOut)

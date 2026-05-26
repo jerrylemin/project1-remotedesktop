@@ -55,3 +55,4 @@
 - LAN helper scripts and `docs/REAL_MACHINE_TEST_CHECKLIST.md` were added.
 - Follow-up UI guard: machine commands now stop client-side with clear messages when control has not been claimed, webcam consent is unchecked, or uploads fail validation; file upload dispatch now uses the real `/api/machines/{id}/file-dispatch` command path.
 - Follow-up input guard: Keyboard Demo input now waits for controller-role acknowledgment before sending key codes, and global page keyboard forwarding is disabled so only typed keys inside the demo box are sent.
+- Follow-up power guard: lock/cancel are confirmed and audited without requiring a reason, while restart/shutdown keep the minimum reason requirement.

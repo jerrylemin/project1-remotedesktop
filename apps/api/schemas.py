@@ -102,7 +102,7 @@ class WebcamActionIn(BaseModel):
 class PowerActionIn(BaseModel):
     action: str
     confirm: bool = False
-    reason: str
+    reason: str = ""
 
 
 class FileDispatchIn(BaseModel):

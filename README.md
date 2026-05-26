@@ -234,6 +234,7 @@ Test-NetConnection <SERVER_IP> -Port 8001
 
 - Physical Windows validation is still required for real screen FPS, real input, webcam, and power commands.
 - Real input and real power are intentionally opt-in environment-gated features.
+- Power `lock` and `cancel` require the audit confirmation checkbox but do not require a reason. `restart` and `shutdown` require a reason of at least 5 characters.
 - File dispatch supports inline bytes up to 512 KB; larger files are prepared for signed download URL handoff.
 
 Webcam live tuning for real agents:

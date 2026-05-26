@@ -115,6 +115,7 @@ Unresolved risks:
 - Follow-up real keyboard fix: Keyboard Demo now forwards scoped key down/up events to the agent after Claim Control. Agent execution still requires `TELEPC_ENABLE_REAL_INPUT=true`; feed entries use key codes only and do not store typed characters.
 - Follow-up input envelope fix: agent WebSocket now handles relay-forwarded `input_event` envelopes directly; before this, keyboard demo events reached the agent socket but were ignored because only `command` envelopes were processed.
 - Follow-up controller-ack keyboard fix: the browser now waits until the relay acknowledges the admin WebSocket as `controller` before sending Keyboard Demo or mouse input events. Global page keyboard forwarding was removed; only the Keyboard Demo text box sends key codes.
+- Follow-up power fix: `lock` and `cancel` power actions no longer require a reason; `restart` and `shutdown` still require checkbox confirmation plus a reason of at least 5 characters. The UI validates these rules before calling the API.
 
 Commit hash:
 
