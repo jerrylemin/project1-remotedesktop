@@ -17,6 +17,8 @@ async def create_control_session(db: AsyncSession, machine_id: str, controller_u
         )
     )
     if active:
+        if active.controller_user_id == controller_user_id:
+            return active
         raise ValueError("machine already controlled")
     session = ControlSession(id=str(uuid4()), machine_id=machine_id, controller_user_id=controller_user_id)
     db.add(session)

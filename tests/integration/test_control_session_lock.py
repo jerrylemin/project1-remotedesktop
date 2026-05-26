@@ -12,5 +12,5 @@ async def test_control_session_lock(api_client, admin_token: str) -> None:
     first = await api_client.post("/api/sessions", headers=headers, json={"machine_id": "m1"})
     second = await api_client.post("/api/sessions", headers=headers, json={"machine_id": "m1"})
     assert first.status_code == 200
-    assert second.status_code == 409
-
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
