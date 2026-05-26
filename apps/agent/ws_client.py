@@ -15,6 +15,13 @@ from shared.enums import EnvelopeType
 from shared.protocol import Envelope, make_envelope
 
 
+def command_payload_for_envelope(envelope: Envelope) -> dict:
+    payload = dict(envelope.payload)
+    if envelope.type == EnvelopeType.INPUT_EVENT:
+        payload.setdefault("action", "input_event")
+    return payload
+
+
 async def run_agent(settings: AgentSettings | None = None) -> None:
     settings = settings or get_agent_settings()
     url = f"{settings.relay_url.rstrip('/')}/ws/agent"
@@ -40,16 +47,17 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                 try:
                     async for raw in ws:
                         envelope = Envelope.model_validate_json(raw)
-                        if envelope.type == EnvelopeType.COMMAND:
+                        if envelope.type in {EnvelopeType.COMMAND, EnvelopeType.INPUT_EVENT}:
+                            command_payload = command_payload_for_envelope(envelope)
                             try:
-                                result = await handle_command(settings.machine_id, envelope.payload, settings.sandbox_root, providers)
+                                result = await handle_command(settings.machine_id, command_payload, settings.sandbox_root, providers)
                                 payload = {"ok": True, "result": result}
-                                action = envelope.payload.get("action")
-                                if action == "webcam" and envelope.payload.get("start"):
+                                action = command_payload.get("action")
+                                if action == "webcam" and command_payload.get("start"):
                                     if webcam_task is not None:
                                         webcam_task.cancel()
                                     webcam_task = asyncio.create_task(send_webcam_frames(ws, settings, providers))
-                                elif action == "webcam" and not envelope.payload.get("start"):
+                                elif action == "webcam" and not command_payload.get("start"):
                                     if webcam_task is not None:
                                         webcam_task.cancel()
                                         webcam_task = None

@@ -113,6 +113,7 @@ Unresolved risks:
 - Follow-up webcam fix: `webcam/start` now returns an initial preview frame, and the UI no longer overwrites webcam images with status text.
 - Follow-up webcam live fix: agent now keeps OpenCV camera open during webcam sessions and streams `webcam_frame` envelopes continuously. Tunables: `TELEPC_WEBCAM_FPS` (default 15, max 30), `TELEPC_WEBCAM_JPEG_QUALITY` (default 55), `TELEPC_WEBCAM_WIDTH`/`HEIGHT` (default 640x360).
 - Follow-up real keyboard fix: Keyboard Demo now forwards scoped key down/up events to the agent after Claim Control. Agent execution still requires `TELEPC_ENABLE_REAL_INPUT=true`; feed entries use key codes only and do not store typed characters.
+- Follow-up input envelope fix: agent WebSocket now handles relay-forwarded `input_event` envelopes directly; before this, keyboard demo events reached the agent socket but were ignored because only `command` envelopes were processed.
 
 Commit hash:
 

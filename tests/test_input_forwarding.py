@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import types
 
+from apps.agent.ws_client import command_payload_for_envelope
 from apps.agent.input_provider import handle_input_event, key_code_to_pyautogui, scale_coordinates
+from shared.protocol import Envelope
 
 
 def test_coordinate_scaling_math() -> None:
@@ -34,3 +36,9 @@ def test_keyboard_code_mapping_and_forwarding(monkeypatch) -> None:
     handle_input_event({"event": "key_down", "code": "KeyA"})
     handle_input_event({"event": "key_up", "code": "KeyA"})
     assert calls == [("down", "a"), ("up", "a")]
+
+
+def test_agent_normalizes_input_event_envelope() -> None:
+    envelope = Envelope(type="input_event", machine_id="m1", payload={"event": "key_down", "code": "KeyA"})
+    payload = command_payload_for_envelope(envelope)
+    assert payload == {"event": "key_down", "code": "KeyA", "action": "input_event"}
