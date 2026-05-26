@@ -10,12 +10,12 @@ from shared.time_utils import utc_iso
 
 
 def webcam_fps() -> int:
-    value = int(os.getenv("TELEPC_WEBCAM_FPS", "15"))
+    value = int(os.getenv("TELEPC_WEBCAM_FPS", "30"))
     return max(1, min(30, value))
 
 
 def webcam_jpeg_quality() -> int:
-    value = int(os.getenv("TELEPC_WEBCAM_JPEG_QUALITY", "55"))
+    value = int(os.getenv("TELEPC_WEBCAM_JPEG_QUALITY", "25"))
     return max(25, min(90, value))
 
 

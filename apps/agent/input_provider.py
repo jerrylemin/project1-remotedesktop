@@ -8,6 +8,40 @@ def real_input_enabled() -> bool:
     return os.getenv("TELEPC_ENABLE_REAL_INPUT", "false").lower() == "true"
 
 
+def key_code_to_pyautogui(code: str) -> str:
+    code = code.strip()
+    if len(code) == 4 and code.startswith("Key"):
+        return code[-1].lower()
+    if len(code) == 6 and code.startswith("Digit"):
+        return code[-1]
+    if len(code) == 7 and code.startswith("Numpad"):
+        return code[-1]
+    mapping = {
+        "Space": "space",
+        "Enter": "enter",
+        "Tab": "tab",
+        "Backspace": "backspace",
+        "Delete": "delete",
+        "Escape": "esc",
+        "ArrowLeft": "left",
+        "ArrowRight": "right",
+        "ArrowUp": "up",
+        "ArrowDown": "down",
+        "ShiftLeft": "shift",
+        "ShiftRight": "shift",
+        "ControlLeft": "ctrl",
+        "ControlRight": "ctrl",
+        "AltLeft": "alt",
+        "AltRight": "alt",
+        "MetaLeft": "winleft",
+        "MetaRight": "winright",
+        "CapsLock": "capslock",
+    }
+    if code.startswith("F") and code[1:].isdigit():
+        return code.lower()
+    return mapping.get(code, code.lower())
+
+
 def _summary(payload: dict[str, Any]) -> dict[str, Any]:
     event = str(payload.get("event") or "unknown")
     summary: dict[str, Any] = {"handled": True, "event": event, "real_input_enabled": real_input_enabled()}
@@ -47,11 +81,11 @@ def handle_input_event(payload: dict[str, Any]) -> dict[str, Any]:
     elif event in {"key_down", "keydown"}:
         key = str(payload.get("key_code") or payload.get("code") or "")
         if key:
-            pyautogui.keyDown(key.lower().removeprefix("key"))
+            pyautogui.keyDown(key_code_to_pyautogui(key))
     elif event in {"key_up", "keyup"}:
         key = str(payload.get("key_code") or payload.get("code") or "")
         if key:
-            pyautogui.keyUp(key.lower().removeprefix("key"))
+            pyautogui.keyUp(key_code_to_pyautogui(key))
     summary["demo_safe"] = False
     return summary
 

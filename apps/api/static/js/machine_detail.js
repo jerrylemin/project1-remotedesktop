@@ -298,18 +298,37 @@ document.getElementById("webcam-snapshot").addEventListener("click", () => {
 });
 
 document.getElementById("keyboard-toggle").addEventListener("click", () => {
+  if (!keyboardRunning && !currentSessionId) {
+    alert("Claim control before starting real keyboard input.");
+    return;
+  }
   keyboardRunning = !keyboardRunning;
   document.getElementById("keyboard-state").textContent = keyboardRunning ? "running" : "stopped";
-  document.getElementById("keyboard-toggle").textContent = keyboardRunning ? "Stop Demo" : "Start Demo";
+  document.getElementById("keyboard-toggle").textContent = keyboardRunning ? "Stop Real Input" : "Start Real Input";
 });
-document.getElementById("keyboard-input").addEventListener("keydown", event => {
+
+function sendKeyboardDemoEvent(eventName, event) {
   if (!keyboardRunning) return;
+  if (!currentSessionId) {
+    alert("Claim control before sending keyboard input.");
+    keyboardRunning = false;
+    document.getElementById("keyboard-state").textContent = "stopped";
+    document.getElementById("keyboard-toggle").textContent = "Start Real Input";
+    return;
+  }
+  event.preventDefault();
+  wsClient.connect({ control: true })
+    .then(() => wsClient.send("input_event", { action: "input_event", event: eventName, code: event.code }))
+    .catch(alert);
   const feed = document.getElementById("keyboard-feed");
   const line = document.createElement("div");
-  line.textContent = `${new Date().toLocaleTimeString()} demo-box ${event.key}`;
+  line.textContent = `${new Date().toLocaleTimeString()} ${eventName} ${event.code}`;
   feed.appendChild(line);
   feed.scrollTop = feed.scrollHeight;
-});
+}
+
+document.getElementById("keyboard-input").addEventListener("keydown", event => sendKeyboardDemoEvent("key_down", event));
+document.getElementById("keyboard-input").addEventListener("keyup", event => sendKeyboardDemoEvent("key_up", event));
 document.getElementById("keyboard-clear").addEventListener("click", () => document.getElementById("keyboard-feed").replaceChildren());
 document.getElementById("keyboard-export").addEventListener("click", () => {
   const text = [...document.getElementById("keyboard-feed").children].map(node => node.textContent).join("\n");

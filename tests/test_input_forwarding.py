@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import types
 
-from apps.agent.input_provider import handle_input_event, scale_coordinates
+from apps.agent.input_provider import handle_input_event, key_code_to_pyautogui, scale_coordinates
 
 
 def test_coordinate_scaling_math() -> None:
@@ -23,3 +23,14 @@ def test_real_pyautogui_call_can_be_monkeypatched(monkeypatch) -> None:
     result = handle_input_event({"event": "mouse_click", "x": 7, "y": 9})
     assert calls == [(7, 9)]
     assert result["demo_safe"] is False
+
+
+def test_keyboard_code_mapping_and_forwarding(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setenv("TELEPC_ENABLE_REAL_INPUT", "true")
+    monkeypatch.setitem(__import__("sys").modules, "pyautogui", types.SimpleNamespace(keyDown=lambda key: calls.append(("down", key)), keyUp=lambda key: calls.append(("up", key))))
+    assert key_code_to_pyautogui("KeyA") == "a"
+    assert key_code_to_pyautogui("Digit1") == "1"
+    handle_input_event({"event": "key_down", "code": "KeyA"})
+    handle_input_event({"event": "key_up", "code": "KeyA"})
+    assert calls == [("down", "a"), ("up", "a")]

@@ -105,9 +105,9 @@
 
       <section id="panel-keyboard" class="remote-panel">
         <div class="panel-head"><h2>Keyboard Demo</h2><span id="keyboard-state">stopped</span></div>
-        <div class="consent-box">This demo only records keys typed inside the box below. It does not capture global system keystrokes.</div>
-        <textarea id="keyboard-input" placeholder="Type here for the demo feed only"></textarea>
-        <div class="toolbar"><button id="keyboard-toggle" class="btn">Start Demo</button><button id="keyboard-clear" class="btn ghost">Clear</button><button id="keyboard-export" class="btn secondary">Export</button></div>
+        <div class="consent-box">Real keyboard input is sent only from this box after Claim Control and requires TELEPC_ENABLE_REAL_INPUT=true on the agent. It does not capture global system keystrokes or store typed characters.</div>
+        <textarea id="keyboard-input" placeholder="Click Start Real Input, then type here to send keys to the controlled machine"></textarea>
+        <div class="toolbar"><button id="keyboard-toggle" class="btn">Start Real Input</button><button id="keyboard-clear" class="btn ghost">Clear</button><button id="keyboard-export" class="btn secondary">Export</button></div>
         <div id="keyboard-feed" class="key-feed"></div>
       </section>
 
