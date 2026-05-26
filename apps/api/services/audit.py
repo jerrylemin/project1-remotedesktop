@@ -59,3 +59,8 @@ async def list_machine_audit(
         stmt = stmt.where(AuditEvent.created_at <= end)
     result = await db.execute(stmt.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(limit))
     return list(result.scalars().all())
+
+
+async def list_recent_audit(db: AsyncSession, limit: int = 20) -> list[AuditEvent]:
+    result = await db.execute(select(AuditEvent).order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(limit))
+    return list(result.scalars().all())

@@ -1,11 +1,32 @@
 {% extends "base.html" %}
 {% block title %}TelePC Machines{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/teacher_dashboard.css">{% endblock %}
+{% block page_title %}Machine Administration{% endblock %}
+{% block page_subtitle %}Search workstations, check controller locks, and open the remote shell for a selected machine.{% endblock %}
 {% block content %}
-<section class="page-head">
-  <h1>Machines</h1>
-  <button id="refresh">Refresh</button>
-</section>
-<div id="machine-list" class="table-list"></div>
-<script src="/static/js/dashboard.js"></script>
+<article class="card">
+  <div class="section-title">
+    <h2>All Machines</h2>
+    <button id="refresh" class="btn">Refresh</button>
+  </div>
+  <div class="toolbar">
+    <input id="machine-search" class="search" placeholder="Search hostname, OS, username, or machine id">
+    <select id="status-filter" class="select">
+      <option value="">All statuses</option>
+      <option value="online">Online</option>
+      <option value="stale">Stale</option>
+      <option value="offline">Offline</option>
+    </select>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Hostname</th><th>IP / Machine ID</th><th>OS</th><th>Status</th><th>Last Seen</th><th>Active Controller</th><th></th></tr>
+      </thead>
+      <tbody id="machine-list"></tbody>
+    </table>
+  </div>
+  <p class="note">Fake demo supports three agents with <code>python scripts/run_3_fake_agents.py</code>: LAB-PC-01, LAB-PC-02, and HOME-PC-01.</p>
+</article>
 {% endblock %}
-
+{% block scripts %}<script src="/static/js/machines.js"></script>{% endblock %}

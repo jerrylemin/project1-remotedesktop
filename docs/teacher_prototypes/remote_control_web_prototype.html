@@ -1,0 +1,538 @@
+
+<h2 class="sr-only">Prototype ứng dụng web điều khiển máy tính từ xa với 7 module: Applications, Processes, Screenshot/Live Screen, Keylogger, File Download, Webcam, và Power Control.</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.shell{background:#0f172a;border-radius:var(--border-radius-lg);overflow:hidden;font-family:var(--font-sans)}
+.topbar{background:#1e293b;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #334155}
+.dot{width:10px;height:10px;border-radius:50%}
+.titlebar{font-size:13px;color:#94a3b8;margin-left:4px}
+.status-pill{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:#4ade80;background:#052e16;padding:3px 10px;border-radius:20px;border:1px solid #166534}
+.blink{width:7px;height:7px;border-radius:50%;background:#4ade80;animation:bk 1.2s infinite}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:.3}}
+.layout{display:flex;min-height:520px}
+.sidebar{width:180px;background:#1e293b;border-right:1px solid #334155;flex-shrink:0;padding:12px 0}
+.nav-section{font-size:10px;font-weight:500;color:#475569;letter-spacing:.08em;text-transform:uppercase;padding:0 16px;margin:12px 0 6px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;font-size:13px;color:#94a3b8;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:#e2e8f0;background:#273548}
+.nav-item.active{color:#38bdf8;background:#0c2340;border-left-color:#38bdf8}
+.nav-item i{font-size:16px}
+.badge{margin-left:auto;font-size:10px;background:#1d4ed8;color:#bfdbfe;padding:1px 6px;border-radius:8px}
+.badge.warn{background:#7c2d12;color:#fed7aa}
+.content{flex:1;overflow:hidden}
+.panel{display:none;padding:0}
+.panel.active{display:block}
+.panel-hdr{background:#1e293b;padding:12px 16px;border-bottom:1px solid #334155;display:flex;align-items:center;gap:10px}
+.panel-title{font-size:14px;font-weight:500;color:#f1f5f9}
+.panel-subtitle{font-size:12px;color:#64748b;margin-left:auto}
+.panel-body{padding:14px 16px}
+.table-wrap{background:#1a2744;border-radius:8px;overflow:hidden;margin-bottom:12px}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:#0f1e3a;color:#64748b;font-weight:500;padding:7px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.tbl td{padding:7px 12px;color:#cbd5e1;border-top:1px solid #1e3a5f}
+.tbl tr:hover td{background:#1e3a5f}
+.run-badge{font-size:10px;padding:2px 7px;border-radius:8px}
+.run{background:#052e16;color:#4ade80;border:1px solid #166534}
+.stop{background:#450a0a;color:#f87171;border:1px solid #7f1d1d}
+.idle{background:#1c1917;color:#a8a29e;border:1px solid #292524}
+.action-btn{font-size:11px;padding:3px 9px;border-radius:6px;cursor:pointer;border:1px solid #334155;background:#0f172a;color:#94a3b8;transition:all .12s}
+.action-btn:hover{background:#1e293b;color:#e2e8f0}
+.action-btn.start{border-color:#166534;color:#4ade80}
+.action-btn.kill{border-color:#7f1d1d;color:#f87171}
+.action-btn.dl{border-color:#1e40af;color:#60a5fa}
+.row-actions{display:flex;gap:4px}
+.screen-mock{background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;position:relative}
+.screen-img{width:100%;display:block;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%);height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+.screen-label{color:#334155;font-size:12px}
+.live-indicator{display:flex;align-items:center;gap:5px;font-size:11px;color:#f87171;background:#450a0a;padding:3px 8px;border-radius:6px;border:1px solid #7f1d1d}
+.screen-controls{display:flex;gap:8px;align-items:center}
+.toggle-group{display:flex;border:1px solid #334155;border-radius:8px;overflow:hidden}
+.toggle-btn{padding:5px 12px;font-size:12px;cursor:pointer;background:#0f172a;color:#64748b;border:none;transition:all .15s}
+.toggle-btn.active{background:#1e40af;color:#bfdbfe}
+.fps-label{font-size:12px;color:#64748b;margin-left:auto}
+.key-feed{background:#0a0a0a;border-radius:8px;padding:12px;font-family:var(--font-mono);font-size:12px;height:140px;overflow-y:auto;margin-bottom:12px;border:1px solid #1e293b}
+.key-line{padding:2px 0;color:#94a3b8;display:flex;gap:8px}
+.key-ts{color:#334155;font-size:11px;min-width:55px}
+.key-app{color:#38bdf8;min-width:80px}
+.key-char{color:#4ade80}
+.key-special{color:#f59e0b;font-style:italic}
+.key-status-row{display:flex;align-items:center;gap:10px}
+.capture-toggle{display:flex;align-items:center;gap:8px;font-size:12px;color:#94a3b8}
+.sw{width:36px;height:20px;background:#334155;border-radius:10px;cursor:pointer;position:relative;transition:background .2s}
+.sw.on{background:#1d4ed8}
+.sw::after{content:'';width:14px;height:14px;background:#fff;border-radius:50%;position:absolute;top:3px;left:3px;transition:left .2s}
+.sw.on::after{left:19px}
+.file-grid{display:grid;gap:6px}
+.file-item{display:flex;align-items:center;gap:10px;background:#1a2744;border-radius:6px;padding:8px 12px;cursor:pointer;transition:background .15s}
+.file-item:hover{background:#1e3a5f}
+.file-icon{font-size:18px;color:#38bdf8;width:22px;flex-shrink:0}
+.file-name{font-size:12px;color:#cbd5e1;flex:1}
+.file-size{font-size:11px;color:#475569}
+.file-dl{font-size:14px;color:#60a5fa}
+.webcam-preview{background:#000;border-radius:8px;height:155px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;border:1px solid #1e293b;overflow:hidden;position:relative}
+.webcam-off{color:#334155;font-size:40px;display:flex;align-items:center;justify-content:center;height:100%}
+.webcam-on{width:100%;height:100%;background:linear-gradient(135deg,#1a2744,#0f2240);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+.webcam-badge{background:#7f1d1d;color:#fca5a5;font-size:11px;padding:2px 8px;border-radius:8px;border:1px solid #b91c1c}
+.power-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.power-card{background:#1a2744;border-radius:8px;padding:14px;cursor:pointer;border:1px solid #1e3a5f;transition:all .15s;text-align:center}
+.power-card:hover{border-color:#475569;background:#1e3a5f}
+.power-card.danger:hover{border-color:#7f1d1d;background:#1c0a0a}
+.power-icon{font-size:28px;margin-bottom:8px}
+.power-name{font-size:13px;font-weight:500;color:#e2e8f0;margin-bottom:3px}
+.power-desc{font-size:11px;color:#475569}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat-box{background:#1a2744;border-radius:6px;padding:8px 10px;text-align:center}
+.stat-val{font-size:18px;font-weight:500;color:#38bdf8}
+.stat-lbl{font-size:10px;color:#475569;margin-top:1px}
+.confirm-modal{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:14px;margin-top:10px}
+.confirm-title{font-size:13px;font-weight:500;color:#fbbf24;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.confirm-desc{font-size:12px;color:#94a3b8;margin-bottom:10px}
+.confirm-btns{display:flex;gap:8px;justify-content:flex-end}
+.btn-cancel{font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid #334155;background:transparent;color:#94a3b8}
+.btn-confirm{font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;border:1px solid #7f1d1d;background:#450a0a;color:#f87171}
+</style>
+
+<div class="shell">
+
+<div class="topbar">
+  <div class="dot" style="background:#ef4444"></div>
+  <div class="dot" style="background:#f59e0b"></div>
+  <div class="dot" style="background:#22c55e"></div>
+  <span class="titlebar">RemoteCtrl — 192.168.1.105 · Windows 11</span>
+  <div class="status-pill"><div class="blink"></div>Connected</div>
+</div>
+
+<div class="layout">
+
+<div class="sidebar">
+  <div class="nav-section">Monitor</div>
+  <div class="nav-item active" onclick="showPanel('apps',this)">
+    <i class="ti ti-apps" aria-hidden="true"></i> Applications
+    <span class="badge">12</span>
+  </div>
+  <div class="nav-item" onclick="showPanel('procs',this)">
+    <i class="ti ti-cpu" aria-hidden="true"></i> Processes
+    <span class="badge">47</span>
+  </div>
+
+  <div class="nav-section">Control</div>
+  <div class="nav-item" onclick="showPanel('screen',this)">
+    <i class="ti ti-device-desktop" aria-hidden="true"></i> Screen
+  </div>
+  <div class="nav-item" onclick="showPanel('keylog',this)">
+    <i class="ti ti-keyboard" aria-hidden="true"></i> Keylogger
+    <span class="badge warn">ON</span>
+  </div>
+  <div class="nav-item" onclick="showPanel('files',this)">
+    <i class="ti ti-folder" aria-hidden="true"></i> Files
+  </div>
+  <div class="nav-item" onclick="showPanel('webcam',this)">
+    <i class="ti ti-camera" aria-hidden="true"></i> Webcam
+  </div>
+
+  <div class="nav-section">System</div>
+  <div class="nav-item" onclick="showPanel('power',this)">
+    <i class="ti ti-power" aria-hidden="true"></i> Power
+  </div>
+</div>
+
+<div class="content">
+
+<div class="panel active" id="panel-apps">
+  <div class="panel-hdr">
+    <i class="ti ti-apps" style="color:#38bdf8;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">Applications</span>
+    <span class="panel-subtitle">12 running · Click to manage</span>
+  </div>
+  <div class="panel-body">
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-val">12</div><div class="stat-lbl">Running</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:#f87171">3</div><div class="stat-lbl">High CPU</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:#a78bfa">2</div><div class="stat-lbl">Background</div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>Application</th><th>Status</th><th>CPU%</th><th>Actions</th></tr></thead>
+        <tbody>
+          <tr><td>Chrome.exe</td><td><span class="run-badge run">Running</span></td><td style="color:#fbbf24">18%</td><td><div class="row-actions"><button class="action-btn kill" onclick="toggleApp(this,'Chrome')">Stop</button></div></td></tr>
+          <tr><td>VSCode.exe</td><td><span class="run-badge run">Running</span></td><td>6%</td><td><div class="row-actions"><button class="action-btn kill" onclick="toggleApp(this,'VSCode')">Stop</button></div></td></tr>
+          <tr><td>Notepad.exe</td><td><span class="run-badge idle">Idle</span></td><td>0%</td><td><div class="row-actions"><button class="action-btn start" onclick="toggleApp(this,'Notepad')">Start</button></div></td></tr>
+          <tr><td>Teams.exe</td><td><span class="run-badge run">Running</span></td><td style="color:#f87171">32%</td><td><div class="row-actions"><button class="action-btn kill" onclick="toggleApp(this,'Teams')">Stop</button></div></td></tr>
+          <tr><td>Discord.exe</td><td><span class="run-badge stop">Stopped</span></td><td>—</td><td><div class="row-actions"><button class="action-btn start" onclick="toggleApp(this,'Discord')">Start</button></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-procs">
+  <div class="panel-hdr">
+    <i class="ti ti-cpu" style="color:#a78bfa;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">Processes</span>
+    <span class="panel-subtitle">47 total · PID list</span>
+  </div>
+  <div class="panel-body">
+    <div class="table-wrap">
+      <table class="tbl">
+        <thead><tr><th>PID</th><th>Name</th><th>CPU</th><th>RAM (MB)</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#64748b">1024</td><td>chrome.exe</td><td style="color:#fbbf24">18%</td><td>412</td><td><button class="action-btn kill">Kill</button></td></tr>
+          <tr><td style="color:#64748b">2048</td><td>code.exe</td><td>6%</td><td>285</td><td><button class="action-btn kill">Kill</button></td></tr>
+          <tr><td style="color:#64748b">3100</td><td>teams.exe</td><td style="color:#f87171">32%</td><td>610</td><td><button class="action-btn kill">Kill</button></td></tr>
+          <tr><td style="color:#64748b">512</td><td>svchost.exe</td><td>1%</td><td>48</td><td><button class="action-btn kill">Kill</button></td></tr>
+          <tr><td style="color:#64748b">4200</td><td>python.exe</td><td>4%</td><td>92</td><td><button class="action-btn kill">Kill</button></td></tr>
+          <tr><td style="color:#64748b">780</td><td>explorer.exe</td><td>0%</td><td>72</td><td><button class="action-btn kill">Kill</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-screen">
+  <div class="panel-hdr">
+    <i class="ti ti-device-desktop" style="color:#22d3ee;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">Screen</span>
+    <span class="panel-subtitle" id="screen-mode-label">Static screenshot</span>
+  </div>
+  <div class="panel-body">
+    <div class="screen-controls" style="margin-bottom:10px">
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btn-static" onclick="setScreenMode('static')">
+          <i class="ti ti-camera" aria-hidden="true"></i> Screenshot
+        </button>
+        <button class="toggle-btn" id="btn-live" onclick="setScreenMode('live')">
+          <i class="ti ti-live-view" aria-hidden="true"></i> Live
+        </button>
+      </div>
+      <span class="fps-label" id="fps-label">— fps</span>
+      <button class="action-btn dl" style="margin-left:8px" onclick="captureScreen()">
+        <i class="ti ti-camera" aria-hidden="true"></i> Capture
+      </button>
+    </div>
+    <div class="screen-mock">
+      <div class="screen-img" id="screen-display">
+        <i class="ti ti-device-desktop" style="font-size:42px;color:#1e3a5f" aria-hidden="true"></i>
+        <span class="screen-label">Press Capture to take screenshot</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="font-size:11px;color:#475569">Last captured: <span id="cap-time">—</span></span>
+      <button class="action-btn dl" style="margin-left:auto" id="dl-screen" onclick="dlScreen()" disabled>
+        <i class="ti ti-download" aria-hidden="true"></i> Download PNG
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-keylog">
+  <div class="panel-hdr">
+    <i class="ti ti-keyboard" style="color:#fb923c;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">Keylogger</span>
+    <span class="panel-subtitle" id="kl-subtitle">Capturing keystrokes</span>
+  </div>
+  <div class="panel-body">
+    <div class="key-status-row" style="margin-bottom:10px">
+      <div class="capture-toggle">
+        <div class="sw on" id="kl-sw" onclick="toggleKeylog()" aria-label="Toggle keylogger"></div>
+        <span id="kl-label" style="color:#4ade80">Capturing</span>
+      </div>
+      <button class="action-btn dl" style="margin-left:auto" onclick="exportKeylog()">
+        <i class="ti ti-download" aria-hidden="true"></i> Export .txt
+      </button>
+      <button class="action-btn" onclick="clearKeylog()">
+        <i class="ti ti-trash" aria-hidden="true"></i> Clear
+      </button>
+    </div>
+    <div class="key-feed" id="key-feed">
+      <div class="key-line"><span class="key-ts">14:22:01</span><span class="key-app">chrome.exe</span><span class="key-char">https://google</span></div>
+      <div class="key-line"><span class="key-ts">14:22:04</span><span class="key-app">chrome.exe</span><span class="key-special">[Enter]</span></div>
+      <div class="key-line"><span class="key-ts">14:22:18</span><span class="key-app">vscode.exe</span><span class="key-char">def main():</span></div>
+      <div class="key-line"><span class="key-ts">14:22:19</span><span class="key-app">vscode.exe</span><span class="key-special">[Enter]</span></div>
+      <div class="key-line"><span class="key-ts">14:22:21</span><span class="key-app">vscode.exe</span><span class="key-char">    print("hello")</span></div>
+      <div class="key-line"><span class="key-ts">14:22:30</span><span class="key-app">teams.exe</span><span class="key-char">Họp lúc 3h nhé</span></div>
+    </div>
+    <div style="display:flex;gap:10px;font-size:11px;color:#475569">
+      <span>Total keystrokes: <span id="kl-count" style="color:#38bdf8">142</span></span>
+      <span>Session: <span id="kl-session" style="color:#38bdf8">00:08:32</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-files">
+  <div class="panel-hdr">
+    <i class="ti ti-folder" style="color:#fbbf24;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">File Download</span>
+    <span class="panel-subtitle">C:\Users\user\Desktop</span>
+  </div>
+  <div class="panel-body">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input type="text" value="C:\Users\user\" style="flex:1;font-size:12px;background:#1a2744;border-color:#334155;color:#cbd5e1" readonly>
+      <button class="action-btn"><i class="ti ti-arrow-up" aria-hidden="true"></i> Up</button>
+    </div>
+    <div class="file-grid">
+      <div class="file-item" onclick="dlFile('report_Q4.xlsx')">
+        <i class="ti ti-file-spreadsheet file-icon" style="color:#22c55e" aria-hidden="true"></i>
+        <span class="file-name">report_Q4.xlsx</span>
+        <span class="file-size">2.4 MB</span>
+        <i class="ti ti-download file-dl" aria-hidden="true"></i>
+      </div>
+      <div class="file-item" onclick="dlFile('passwords.txt')">
+        <i class="ti ti-file-text file-icon" style="color:#f87171" aria-hidden="true"></i>
+        <span class="file-name">passwords.txt</span>
+        <span class="file-size">1.2 KB</span>
+        <i class="ti ti-download file-dl" aria-hidden="true"></i>
+      </div>
+      <div class="file-item" onclick="dlFile('project_source.zip')">
+        <i class="ti ti-file-zip file-icon" style="color:#fb923c" aria-hidden="true"></i>
+        <span class="file-name">project_source.zip</span>
+        <span class="file-size">18.7 MB</span>
+        <i class="ti ti-download file-dl" aria-hidden="true"></i>
+      </div>
+      <div class="file-item" onclick="dlFile('webcam_capture.jpg')">
+        <i class="ti ti-photo file-icon" style="color:#38bdf8" aria-hidden="true"></i>
+        <span class="file-name">webcam_capture.jpg</span>
+        <span class="file-size">320 KB</span>
+        <i class="ti ti-download file-dl" aria-hidden="true"></i>
+      </div>
+      <div class="file-item" onclick="dlFile('Documents/')">
+        <i class="ti ti-folder file-icon" style="color:#fbbf24" aria-hidden="true"></i>
+        <span class="file-name">Documents/</span>
+        <span class="file-size">— dir</span>
+        <i class="ti ti-chevron-right file-dl" aria-hidden="true"></i>
+      </div>
+    </div>
+    <div id="dl-status" style="font-size:12px;color:#4ade80;margin-top:8px;min-height:18px"></div>
+  </div>
+</div>
+
+<div class="panel" id="panel-webcam">
+  <div class="panel-hdr">
+    <i class="ti ti-camera" style="color:#e879f9;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">Webcam</span>
+    <span class="panel-subtitle" id="wc-subtitle">Camera off</span>
+  </div>
+  <div class="panel-body">
+    <div class="webcam-preview" id="wc-preview">
+      <div class="webcam-off"><i class="ti ti-camera-off" aria-hidden="true"></i></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+      <button class="action-btn start" id="wc-btn" onclick="toggleWebcam()">
+        <i class="ti ti-player-play" aria-hidden="true"></i> Start Webcam
+      </button>
+      <button class="action-btn dl" id="wc-snap" onclick="snapWebcam()" disabled>
+        <i class="ti ti-camera" aria-hidden="true"></i> Snapshot
+      </button>
+      <select style="font-size:12px;background:#1a2744;border-color:#334155;color:#cbd5e1;padding:4px 8px;border-radius:6px">
+        <option>Camera 0 (Built-in)</option>
+        <option>Camera 1 (USB)</option>
+      </select>
+    </div>
+    <div style="font-size:11px;color:#475569;display:flex;gap:16px">
+      <span>Resolution: <span id="wc-res" style="color:#38bdf8">—</span></span>
+      <span>FPS: <span id="wc-fps" style="color:#38bdf8">—</span></span>
+      <span>Snapshots: <span id="wc-snaps" style="color:#38bdf8">0</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-power">
+  <div class="panel-hdr">
+    <i class="ti ti-power" style="color:#f87171;font-size:16px" aria-hidden="true"></i>
+    <span class="panel-title">Power Control</span>
+    <span class="panel-subtitle">System actions — use with caution</span>
+  </div>
+  <div class="panel-body">
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-val" style="color:#4ade80">↑ 4d 12h</div><div class="stat-lbl">Uptime</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:#fbbf24">62°C</div><div class="stat-lbl">CPU Temp</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:#38bdf8">43%</div><div class="stat-lbl">RAM Used</div></div>
+    </div>
+    <div class="power-grid">
+      <div class="power-card" onclick="powerAction('Lock')">
+        <div class="power-icon" style="color:#38bdf8"><i class="ti ti-lock" aria-hidden="true"></i></div>
+        <div class="power-name">Lock Screen</div>
+        <div class="power-desc">Lock without logout</div>
+      </div>
+      <div class="power-card" onclick="powerAction('Restart')">
+        <div class="power-icon" style="color:#fbbf24"><i class="ti ti-refresh" aria-hidden="true"></i></div>
+        <div class="power-name">Restart</div>
+        <div class="power-desc">Reboot the system</div>
+      </div>
+      <div class="power-card danger" onclick="powerAction('Shutdown')">
+        <div class="power-icon" style="color:#f87171"><i class="ti ti-power" aria-hidden="true"></i></div>
+        <div class="power-name">Shutdown</div>
+        <div class="power-desc">Power off machine</div>
+      </div>
+      <div class="power-card" onclick="powerAction('Sleep')">
+        <div class="power-icon" style="color:#a78bfa"><i class="ti ti-moon" aria-hidden="true"></i></div>
+        <div class="power-name">Sleep</div>
+        <div class="power-desc">Suspend to RAM</div>
+      </div>
+    </div>
+    <div id="power-confirm" style="display:none" class="confirm-modal">
+      <div class="confirm-title"><i class="ti ti-alert-triangle" aria-hidden="true"></i> <span id="confirm-title-text">Confirm action</span></div>
+      <div class="confirm-desc" id="confirm-desc">Are you sure?</div>
+      <div class="confirm-btns">
+        <button class="btn-cancel" onclick="cancelPower()">Cancel</button>
+        <button class="btn-confirm" id="confirm-ok" onclick="executePower()">Confirm</button>
+      </div>
+    </div>
+    <div id="power-result" style="font-size:12px;color:#4ade80;margin-top:8px;min-height:18px"></div>
+  </div>
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+let currentPanel='apps', liveMode=false, wcOn=false, klOn=true, pendingAction='', wcSnapCount=0;
+
+function showPanel(id,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  el.classList.add('active');
+  currentPanel=id;
+}
+
+function toggleApp(btn,name){
+  const td=btn.closest('tr').querySelector('.run-badge');
+  if(btn.textContent.trim()==='Stop'){
+    td.className='run-badge stop'; td.textContent='Stopped';
+    btn.className='action-btn start'; btn.textContent='Start';
+  } else {
+    td.className='run-badge run'; td.textContent='Running';
+    btn.className='action-btn kill'; btn.textContent='Stop';
+  }
+}
+
+function setScreenMode(mode){
+  liveMode=(mode==='live');
+  document.getElementById('btn-static').classList.toggle('active',!liveMode);
+  document.getElementById('btn-live').classList.toggle('active',liveMode);
+  document.getElementById('screen-mode-label').textContent=liveMode?'Live stream active':'Static screenshot';
+  document.getElementById('fps-label').textContent=liveMode?'24 fps':'— fps';
+  const disp=document.getElementById('screen-display');
+  if(liveMode){
+    disp.innerHTML='<i class="ti ti-device-desktop" style="font-size:42px;color:#1e3a5f" aria-hidden="true"></i><div class="live-indicator"><div class="blink"></div>LIVE 24fps</div>';
+  } else {
+    disp.innerHTML='<i class="ti ti-device-desktop" style="font-size:42px;color:#1e3a5f" aria-hidden="true"></i><span class="screen-label">Press Capture to take screenshot</span>';
+    document.getElementById('fps-label').textContent='— fps';
+  }
+}
+
+function captureScreen(){
+  const now=new Date();
+  document.getElementById('cap-time').textContent=now.toLocaleTimeString();
+  document.getElementById('dl-screen').disabled=false;
+  const disp=document.getElementById('screen-display');
+  disp.innerHTML='<i class="ti ti-device-desktop" style="font-size:42px;color:#334155" aria-hidden="true"></i><span class="screen-label" style="color:#4ade80">Screenshot captured ✓</span>';
+}
+
+function dlScreen(){
+  const r=document.getElementById('power-result');
+}
+
+function toggleKeylog(){
+  klOn=!klOn;
+  const sw=document.getElementById('kl-sw');
+  const lbl=document.getElementById('kl-label');
+  const sub=document.getElementById('kl-subtitle');
+  sw.classList.toggle('on',klOn);
+  lbl.textContent=klOn?'Capturing':'Paused';
+  lbl.style.color=klOn?'#4ade80':'#64748b';
+  sub.textContent=klOn?'Capturing keystrokes':'Paused';
+  document.querySelector('.badge.warn').textContent=klOn?'ON':'OFF';
+  document.querySelector('.badge.warn').style.background=klOn?'#7c2d12':'#1c1917';
+  document.querySelector('.badge.warn').style.color=klOn?'#fed7aa':'#a8a29e';
+}
+
+function exportKeylog(){
+  const st=document.getElementById('dl-status');
+  document.getElementById('kl-count').textContent=Math.round(Math.random()*50+142);
+}
+
+function clearKeylog(){
+  document.getElementById('key-feed').innerHTML='<div class="key-line"><span class="key-ts" style="color:#334155">—</span><span class="key-app" style="color:#334155">Feed cleared</span></div>';
+  document.getElementById('kl-count').textContent='0';
+}
+
+function dlFile(name){
+  const st=document.getElementById('dl-status');
+  st.textContent='Downloading '+name+'...';
+  setTimeout(()=>{ st.textContent='Downloaded: '+name+' ✓'; },800);
+}
+
+function toggleWebcam(){
+  wcOn=!wcOn;
+  const btn=document.getElementById('wc-btn');
+  const preview=document.getElementById('wc-preview');
+  const sub=document.getElementById('wc-subtitle');
+  const snap=document.getElementById('wc-snap');
+  if(wcOn){
+    preview.innerHTML='<div class="webcam-on"><i class="ti ti-camera" style="font-size:36px;color:#a78bfa" aria-hidden="true"></i><div class="webcam-badge">LIVE</div><span style="font-size:11px;color:#94a3b8;margin-top:4px">1280×720 · 30fps</span></div>';
+    btn.innerHTML='<i class="ti ti-player-pause" aria-hidden="true"></i> Stop Webcam';
+    btn.className='action-btn kill';
+    sub.textContent='Camera streaming · 1280×720';
+    snap.disabled=false;
+    document.getElementById('wc-res').textContent='1280×720';
+    document.getElementById('wc-fps').textContent='30';
+  } else {
+    preview.innerHTML='<div class="webcam-off"><i class="ti ti-camera-off" aria-hidden="true"></i></div>';
+    btn.innerHTML='<i class="ti ti-player-play" aria-hidden="true"></i> Start Webcam';
+    btn.className='action-btn start';
+    sub.textContent='Camera off';
+    snap.disabled=true;
+    document.getElementById('wc-res').textContent='—';
+    document.getElementById('wc-fps').textContent='—';
+  }
+}
+
+function snapWebcam(){
+  wcSnapCount++;
+  document.getElementById('wc-snaps').textContent=String(wcSnapCount);
+}
+
+let powerTarget='';
+function powerAction(action){
+  powerTarget=action;
+  document.getElementById('power-confirm').style.display='block';
+  document.getElementById('confirm-title-text').textContent='Confirm: '+action;
+  const msgs={Lock:'Lock the screen on the remote machine?',Restart:'Restart the remote machine? All unsaved work will be lost.',Shutdown:'Shut down the remote machine? Connection will be terminated.',Sleep:'Put the remote machine to sleep?'};
+  document.getElementById('confirm-desc').textContent=msgs[action]||'Are you sure?';
+}
+function cancelPower(){ document.getElementById('power-confirm').style.display='none'; }
+function executePower(){
+  document.getElementById('power-confirm').style.display='none';
+  document.getElementById('power-result').textContent='Sending '+powerTarget+' command... ✓';
+  setTimeout(()=>{ document.getElementById('power-result').textContent=''; },2500);
+}
+
+let klTick=0;
+const klSamples=[
+  ['notepad.exe','Hello World'],['chrome.exe','facebook.com'],['chrome.exe','[Ctrl+T]'],
+  ['vscode.exe','import socket'],['vscode.exe','[Enter]'],['teams.exe','OK tí nữa gặp'],
+];
+setInterval(()=>{
+  if(!klOn) return;
+  const feed=document.getElementById('key-feed');
+  const s=klSamples[klTick%klSamples.length]; klTick++;
+  const now=new Date();
+  const ts=now.toLocaleTimeString('en',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const isSpecial=s[1].startsWith('[');
+  const line=document.createElement('div'); line.className='key-line';
+  line.innerHTML=`<span class="key-ts">${ts}</span><span class="key-app">${s[0]}</span><span class="${isSpecial?'key-special':'key-char'}">${s[1]}</span>`;
+  feed.appendChild(line);
+  feed.scrollTop=feed.scrollHeight;
+  const cnt=document.getElementById('kl-count');
+  cnt.textContent=String(Math.round(parseInt(cnt.textContent||'142')+s[1].length));
+},2800);
+
+let sec=512;
+setInterval(()=>{
+  sec++;
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  const el=document.getElementById('kl-session');
+  if(el) el.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+},1000);
+</script>

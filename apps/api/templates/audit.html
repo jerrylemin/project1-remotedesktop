@@ -1,9 +1,18 @@
 {% extends "base.html" %}
 {% block title %}TelePC Audit{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/teacher_dashboard.css">{% endblock %}
+{% block page_title %}Audit Logs{% endblock %}
+{% block page_subtitle %}Select a machine to inspect per-machine events, actor, timestamp, and redacted metadata.{% endblock %}
 {% block content %}
-<section class="page-head"><h1>Audit Logs</h1></section>
-<p>Select a machine to view per-machine audit history.</p>
-<div id="machine-list" class="table-list"></div>
-<script src="/static/js/dashboard.js"></script>
+<section class="grid-2">
+  <article class="card">
+    <div class="section-title"><h2>Machines</h2><button id="refresh" class="btn">Refresh</button></div>
+    <div class="table-wrap"><table><thead><tr><th>Machine</th><th>Status</th><th></th></tr></thead><tbody id="machine-list"></tbody></table></div>
+  </article>
+  <article class="card">
+    <div class="section-title"><h2>Recent Audit</h2><span>global latest</span></div>
+    <div id="recent-audit" class="audit-stack"></div>
+  </article>
+</section>
 {% endblock %}
-
+{% block scripts %}<script src="/static/js/audit.js"></script>{% endblock %}

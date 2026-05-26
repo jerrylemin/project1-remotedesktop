@@ -23,6 +23,7 @@ class MachineOut(BaseModel):
     username: str
     status: str
     last_seen: datetime | None
+    active_controller_user_id: int | None = None
 
 
 class EnrollTokenOut(BaseModel):
@@ -62,6 +63,46 @@ class AuditOut(BaseModel):
     summary: str
     metadata_json: dict[str, Any]
     created_at: datetime
+
+
+class DashboardSummaryOut(BaseModel):
+    online_machines: int
+    stale_machines: int
+    offline_machines: int
+    active_sessions: int
+    commands_today: int
+    alerts: int
+
+
+class MachineCommandOut(BaseModel):
+    status: str
+    command: dict[str, Any]
+
+
+class ApplicationActionIn(BaseModel):
+    name: str
+    command: str | None = None
+    confirm: bool = False
+
+
+class ProcessStopIn(BaseModel):
+    name: str | None = None
+    confirm: bool = False
+
+
+class ScreenActionIn(BaseModel):
+    mode: str = "screenshot"
+    consent: bool = True
+
+
+class WebcamActionIn(BaseModel):
+    consent: bool = False
+
+
+class PowerActionIn(BaseModel):
+    action: str
+    confirm: bool = False
+    reason: str
 
 
 class SandboxFileOut(BaseModel):

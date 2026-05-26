@@ -6,11 +6,23 @@ TelePC is a lab/demo remote desktop control system for authorized machines. It u
 
 - Authorized lab/admin use only.
 - No stealth behavior, hidden persistence, antivirus bypass, or credential collection.
-- Agent startup prints visible control/consent status.
-- Key input handling records metadata only.
-- Dangerous actions require explicit confirmation and audit logging.
+- Screen, webcam, keyboard demo, file, and power actions are consent-visible and auditable.
+- Keyboard Demo only records keys typed in the browser demo box, not global system keystrokes.
+- Files move through the sandbox only; whole-drive browsing and path traversal are blocked.
+- Protected system processes such as `lsass.exe`, `winlogon.exe`, `csrss.exe`, `services.exe`, `system`, and `registry` cannot be stopped through the UI/API.
+
+## Teacher Prototype UI
+
+The admin UI now applies the teacher prototype as real FastAPI/Jinja pages instead of static HTML:
+
+- `Topic01_Prototype.html` -> bright dashboard, machine list, security/audit navigation.
+- `remote_control_web_prototype.html` -> dark per-machine remote shell with Applications, Processes, Screen, Files, Webcam, Keyboard Demo, Power, and Audit Logs modules.
+
+The UI is split across `apps/api/templates`, `apps/api/templates/partials`, `apps/api/static/css`, and `apps/api/static/js`, and reads data from the existing API, relay WebSocket, fake agent, and audit/file/job services.
 
 ## Setup
+
+Use Python 3.11+.
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -46,6 +58,19 @@ This connects `LAB-PC-01`, `LAB-PC-02`, and `HOME-PC-01` through the relay.
 
 Admin login sets an HttpOnly session cookie. Browser JavaScript does not store the long-lived JWT in `localStorage`; it asks `POST /api/ws-ticket` for a short-lived WebSocket ticket and sends that ticket to the relay. The relay validates tickets through the API using `INTERNAL_API_SECRET`.
 
+## Demo Flow
+
+1. Start API, relay, and `python scripts/run_3_fake_agents.py`.
+2. Log in at `/admin/login` with `admin` / `admin123`.
+3. Open `/admin/dashboard` and review online machines, active sessions, commands today, alerts, and recent audit logs.
+4. Open `/admin/machines`, search/filter machines, then click Manage.
+5. Claim control in `/admin/machines/{machine_id}`.
+6. Use Screen to start live frame viewing or capture/download the latest image.
+7. Use Processes and Applications; protected processes are blocked and audited.
+8. Upload and dispatch a sandbox file, then review sandbox files and job history.
+9. Start Webcam only after checking the consent box.
+10. Use Power controls with confirmation and a reason, then review per-machine Audit Logs.
+
 ## Windows Real Agent
 
 Real mode is optional and intended only for authorized lab machines.
@@ -61,7 +86,7 @@ python scripts/run_agent.py
 
 Notes:
 
-- Use Python 3.11.
+- Use Python 3.11+.
 - Run in a visible console; the agent prints consent/control status.
 - Optional dependency failures do not crash the agent; commands return clear errors and are auditable as `command_failed`.
 - Stop cleanly with `Ctrl+C`.
@@ -73,14 +98,4 @@ python -m compileall .
 pytest -q
 ```
 
-Latest local result: `35 passed` with no FastAPI deprecation warnings.
-
-## Demo Flow
-
-1. Create admin with `python scripts/create_admin.py`.
-2. Run API on port 8000 and relay on port 8001.
-3. Run fake agent.
-4. Or run `python scripts/run_3_fake_agents.py` to show multiple machines.
-5. Log in to `/admin/login`.
-6. Open Machines, select the fake machine, claim control, and view forwarded fake screen frames.
-7. Use Processes, Applications, Files Sandbox, Audit Logs, and Danger Zone confirm controls.
+Latest local result with Python 3.12: `42 passed`.

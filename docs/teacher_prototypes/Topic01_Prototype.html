@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Remote Lab Management - UI Prototype</title>
+  <style>
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #687188;
+      --line: #e5e9f2;
+      --primary: #2457d6;
+      --primary-soft: #eaf0ff;
+      --danger: #d92d20;
+      --danger-soft: #fff1f0;
+      --success: #14804a;
+      --success-soft: #e8f7ef;
+      --warning: #b7791f;
+      --warning-soft: #fff7e6;
+      --shadow: 0 12px 30px rgba(20, 34, 66, 0.08);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 270px 1fr;
+    }
+
+    .sidebar {
+      background: #111827;
+      color: #fff;
+      padding: 24px 18px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4f8cff, #23c483);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: white;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: #aab2c3;
+      margin-top: 2px;
+    }
+
+    .menu-title {
+      color: #8d98ad;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 22px 10px 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      color: #d7dce8;
+      text-decoration: none;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      font-size: 14px;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .main {
+      padding: 26px 30px 50px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .title h1 {
+      margin: 0 0 6px;
+      font-size: 27px;
+    }
+
+    .title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .user-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--card);
+      padding: 10px 14px;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .stat-note {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .layout-2 {
+      grid-template-columns: 1.2fr 0.8fr;
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .section-title span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .search {
+      flex: 1;
+      min-width: 220px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 13px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+      font-size: 13px;
+    }
+
+    .btn.secondary {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn.warning {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .btn.ghost {
+      background: #f6f8fc;
+      color: #283348;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      color: var(--muted);
+      text-align: left;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    td {
+      padding: 14px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .status.online {
+      background: var(--success-soft);
+      color: var(--success);
+    }
+
+    .status.offline {
+      background: #f1f3f8;
+      color: var(--muted);
+    }
+
+    .status.warn {
+      background: var(--warning-soft);
+      color: var(--warning);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 20px 0 18px;
+    }
+
+    .tab {
+      padding: 10px 13px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .screen-preview {
+      background: #0b1020;
+      border-radius: 16px;
+      height: 330px;
+      display: grid;
+      place-items: center;
+      color: #aeb8d1;
+      border: 10px solid #1c263b;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .screen-window {
+      width: 82%;
+      height: 70%;
+      background: #f7f9fc;
+      border-radius: 12px;
+      padding: 16px;
+      color: #172033;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.35);
+    }
+
+    .fake-window-bar {
+      height: 26px;
+      border-bottom: 1px solid var(--line);
+      margin: -16px -16px 16px;
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+      gap: 6px;
+    }
+
+    .circle {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    .fake-line {
+      height: 11px;
+      border-radius: 999px;
+      background: #d9e1f2;
+      margin-bottom: 10px;
+    }
+
+    .fake-line.short {
+      width: 55%;
+    }
+
+    .consent-box {
+      border: 1px dashed #f0b429;
+      background: #fffaf0;
+      color: #7c4a03;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 14px;
+      margin-top: 14px;
+    }
+
+    .machine-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .machine-name {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .pc-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      display: grid;
+      place-items: center;
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .panel-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .mini-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .mini-row:last-child {
+      border-bottom: 0;
+    }
+
+    .kbd-demo {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fbfcff;
+    }
+
+    .kbd-box {
+      width: 100%;
+      min-height: 88px;
+      border: 1px dashed #bcc6d9;
+      border-radius: 12px;
+      padding: 12px;
+      color: var(--muted);
+      margin: 10px 0;
+      background: white;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 1100px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .stats,
+      .layout-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">RL</div>
+        <div>
+          <div class="brand-title">Remote Lab<br />Management</div>
+          <div class="brand-sub">Prototype cho đồ án môn học</div>
+        </div>
+      </div>
+
+      <div class="menu-title">Tổng quan</div>
+      <a class="nav-item active">📊 Dashboard</a>
+      <a class="nav-item">💻 Máy trạm</a>
+      <a class="nav-item">🧑‍🏫 Lớp thực hành</a>
+
+      <div class="menu-title">Quản trị máy</div>
+      <a class="nav-item">🚀 Applications</a>
+      <a class="nav-item">⚙️ Processes</a>
+      <a class="nav-item">🖥️ Screen View</a>
+      <a class="nav-item">📁 File Sandbox</a>
+      <a class="nav-item">📷 Webcam Consent</a>
+      <a class="nav-item">⌨️ Keyboard Demo</a>
+      <a class="nav-item">🔌 Power Control</a>
+
+      <div class="menu-title">Bảo mật</div>
+      <a class="nav-item">🛡️ Phân quyền</a>
+      <a class="nav-item">🧾 Audit Logs</a>
+      <a class="nav-item">⚙️ Cấu hình Agent</a>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="title">
+          <h1>Dashboard quản lý phòng lab</h1>
+          <p>Giao diện mẫu cho hệ thống web hỗ trợ điều khiển máy tính từ xa trong môi trường thực hành.</p>
+        </div>
+        <div class="user-box">
+          <div class="avatar">GV</div>
+          <div>
+            <strong>Giảng viên</strong>
+            <div style="font-size:12px;color:var(--muted)">teacher@university.edu.vn</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="grid stats">
+        <div class="card">
+          <div class="stat-label">Máy online</div>
+          <div class="stat-value">24</div>
+          <div class="stat-note">trong tổng số 30 máy lab</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">Phiên screen đang mở</div>
+          <div class="stat-value">3</div>
+          <div class="stat-note">đều có thông báo trên Agent</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">Lệnh đã thực thi hôm nay</div>
+          <div class="stat-value">128</div>
+          <div class="stat-note">được ghi audit log</div>
+        </div>
+        <div class="card">
+          <div class="stat-label">Cảnh báo</div>
+          <div class="stat-value">2</div>
+          <div class="stat-note">máy mất kết nối hơn 15 phút</div>
+        </div>
+      </section>
+
+      <section class="grid layout-2">
+        <div class="card">
+          <div class="section-title">
+            <h2>Danh sách máy trạm</h2>
+            <span>Cập nhật realtime qua WebSocket</span>
+          </div>
+
+          <div class="toolbar">
+            <input class="search" placeholder="Tìm hostname, IP, lớp thực hành..." />
+            <button class="btn secondary">Lọc máy online</button>
+            <button class="btn">Thêm Agent</button>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Máy</th>
+                <th>IP</th>
+                <th>Hệ điều hành</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>LAB-PC-01</strong><br /><span style="color:var(--muted)">Phòng A1.01</span></td>
+                <td>192.168.10.21</td>
+                <td>Windows 11</td>
+                <td><span class="status online"><span class="dot"></span>Online</span></td>
+                <td><button class="btn">Manage</button></td>
+              </tr>
+              <tr>
+                <td><strong>LAB-PC-02</strong><br /><span style="color:var(--muted)">Phòng A1.01</span></td>
+                <td>192.168.10.22</td>
+                <td>Windows 11</td>
+                <td><span class="status online"><span class="dot"></span>Online</span></td>
+                <td><button class="btn">Manage</button></td>
+              </tr>
+              <tr>
+                <td><strong>LAB-PC-03</strong><br /><span style="color:var(--muted)">Phòng A1.01</span></td>
+                <td>192.168.10.23</td>
+                <td>Ubuntu 22.04</td>
+                <td><span class="status warn"><span class="dot"></span>Busy</span></td>
+                <td><button class="btn">Manage</button></td>
+              </tr>
+              <tr>
+                <td><strong>LAB-PC-04</strong><br /><span style="color:var(--muted)">Phòng A1.01</span></td>
+                <td>192.168.10.24</td>
+                <td>Windows 10</td>
+                <td><span class="status offline"><span class="dot"></span>Offline</span></td>
+                <td><button class="btn ghost">View</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <h2>Nhật ký thao tác gần đây</h2>
+            <span>Audit log</span>
+          </div>
+
+          <div class="panel-list">
+            <div class="mini-row">
+              <div>
+                <strong>TAKE_SCREENSHOT</strong><br />
+                <span style="color:var(--muted)">LAB-PC-01 · teacher@university.edu.vn</span>
+              </div>
+              <span>10:30</span>
+            </div>
+            <div class="mini-row">
+              <div>
+                <strong>START_APP: VS Code</strong><br />
+                <span style="color:var(--muted)">LAB-PC-02 · whitelist approved</span>
+              </div>
+              <span>10:25</span>
+            </div>
+            <div class="mini-row">
+              <div>
+                <strong>DOWNLOAD_FILE</strong><br />
+                <span style="color:var(--muted)">/RemoteLab/SharedFiles/result.txt</span>
+              </div>
+              <span>10:20</span>
+            </div>
+            <div class="mini-row">
+              <div>
+                <strong>WEBCAM_REQUEST_DENIED</strong><br />
+                <span style="color:var(--muted)">Sinh viên từ chối truy cập webcam</span>
+              </div>
+              <span>10:15</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:18px">
+        <div class="machine-header">
+          <div class="machine-name">
+            <div class="pc-icon">PC</div>
+            <div>
+              <h2 style="margin:0">LAB-PC-01</h2>
+              <div class="meta">
+                <span>IP: 192.168.10.21</span>
+                <span>OS: Windows 11</span>
+                <span>Agent: v1.0.0</span>
+                <span>Last seen: 8 giây trước</span>
+              </div>
+            </div>
+          </div>
+          <span class="status online"><span class="dot"></span>Online</span>
+        </div>
+
+        <div class="tabs">
+          <button class="tab active">Overview</button>
+          <button class="tab">Applications</button>
+          <button class="tab">Processes</button>
+          <button class="tab">Screen</button>
+          <button class="tab">Files</button>
+          <button class="tab">Webcam</button>
+          <button class="tab">Keyboard Demo</button>
+          <button class="tab">Power</button>
+          <button class="tab">Audit Logs</button>
+        </div>
+
+        <div class="grid layout-2">
+          <div class="card" style="box-shadow:none">
+            <div class="section-title">
+              <h2>Screen View</h2>
+              <span>Screenshot tĩnh hoặc live 1 FPS</span>
+            </div>
+
+            <div class="toolbar">
+              <button class="btn">Take Screenshot</button>
+              <button class="btn secondary">Start Live View</button>
+              <button class="btn ghost">Stop Live View</button>
+            </div>
+
+            <div class="screen-preview">
+              <div class="screen-window">
+                <div class="fake-window-bar">
+                  <span class="circle"></span>
+                  <span class="circle"></span>
+                  <span class="circle"></span>
+                </div>
+                <div class="fake-line" style="width:75%"></div>
+                <div class="fake-line" style="width:92%"></div>
+                <div class="fake-line short"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px">
+                  <div style="height:80px;border-radius:12px;background:#e8eefb"></div>
+                  <div style="height:80px;border-radius:12px;background:#e8eefb"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="consent-box">
+              <strong>Minh bạch quyền riêng tư:</strong> khi xem màn hình, Agent trên máy LAB-PC-01 hiển thị thông báo
+              “Màn hình đang được xem bởi Giảng viên”.
+            </div>
+          </div>
+
+          <div class="card" style="box-shadow:none">
+            <div class="section-title">
+              <h2>Thông tin tài nguyên</h2>
+              <span>Realtime metrics</span>
+            </div>
+
+            <div class="mini-row">
+              <span>CPU Usage</span>
+              <strong>18%</strong>
+            </div>
+            <div class="mini-row">
+              <span>RAM Usage</span>
+              <strong>4.2 GB / 16 GB</strong>
+            </div>
+            <div class="mini-row">
+              <span>Disk Usage</span>
+              <strong>128 GB / 512 GB</strong>
+            </div>
+            <div class="mini-row">
+              <span>Active User</span>
+              <strong>student01</strong>
+            </div>
+            <div class="mini-row">
+              <span>Consent Status</span>
+              <strong style="color:var(--success)">Screen notified</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid layout-2" style="margin-top:18px">
+        <div class="card">
+          <div class="section-title">
+            <h2>Applications được phép điều khiển</h2>
+            <span>Chỉ chạy app trong whitelist</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Ứng dụng</th>
+                <th>Đường dẫn</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Notepad</strong></td>
+                <td>C:\Windows\System32\notepad.exe</td>
+                <td><span class="status offline">Stopped</span></td>
+                <td><button class="btn">Start</button></td>
+              </tr>
+              <tr>
+                <td><strong>VS Code</strong></td>
+                <td>C:\Users\Public\App\Code.exe</td>
+                <td><span class="status online">Running</span></td>
+                <td><button class="btn danger">Stop</button></td>
+              </tr>
+              <tr>
+                <td><strong>Chrome</strong></td>
+                <td>C:\Program Files\Google\Chrome\Application\chrome.exe</td>
+                <td><span class="status online">Running</span></td>
+                <td><button class="btn danger">Stop</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <h2>Processes</h2>
+            <span>Không cho dừng process hệ thống</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>PID</th>
+                <th>Name</th>
+                <th>CPU</th>
+                <th>RAM</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1234</td>
+                <td><strong>chrome.exe</strong></td>
+                <td>5.2%</td>
+                <td>230 MB</td>
+                <td><button class="btn danger">Stop</button></td>
+              </tr>
+              <tr>
+                <td>2048</td>
+                <td><strong>Code.exe</strong></td>
+                <td>2.1%</td>
+                <td>180 MB</td>
+                <td><button class="btn danger">Stop</button></td>
+              </tr>
+              <tr>
+                <td>688</td>
+                <td><strong>lsass.exe</strong></td>
+                <td>0.1%</td>
+                <td>45 MB</td>
+                <td><button class="btn ghost">Protected</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid layout-2" style="margin-top:18px">
+        <div class="card">
+          <div class="section-title">
+            <h2>File Sandbox</h2>
+            <span>Chỉ truy cập /RemoteLab/SharedFiles</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Tên file</th>
+                <th>Loại</th>
+                <th>Kích thước</th>
+                <th>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>result.txt</strong></td>
+                <td>Text</td>
+                <td>12 KB</td>
+                <td><button class="btn">Download</button></td>
+              </tr>
+              <tr>
+                <td><strong>lab-report.pdf</strong></td>
+                <td>PDF</td>
+                <td>520 KB</td>
+                <td><button class="btn">Download</button></td>
+              </tr>
+              <tr>
+                <td><strong>capture.png</strong></td>
+                <td>Image</td>
+                <td>240 KB</td>
+                <td><button class="btn">Download</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="consent-box">
+            Hệ thống chặn path traversal như <strong>../../Users/Admin/Documents</strong> và chỉ cho tải file trong thư mục sandbox.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <h2>Webcam & Keyboard Demo</h2>
+            <span>Có consent, không theo dõi lén</span>
+          </div>
+
+          <div class="toolbar">
+            <button class="btn">Request Webcam Access</button>
+            <button class="btn ghost">Stop Webcam</button>
+          </div>
+
+          <div class="screen-preview" style="height:190px">
+            Webcam preview chỉ hiển thị sau khi sinh viên đồng ý
+          </div>
+
+          <div class="consent-box">
+            Webcam phải có popup xác nhận trên máy client. Nếu sinh viên từ chối, dashboard chỉ ghi log “WEBCAM_REQUEST_DENIED”.
+          </div>
+
+          <div class="kbd-demo" style="margin-top:14px">
+            <strong>Keyboard Event Demo</strong>
+            <div class="kbd-box">Sinh viên nhập trong ô demo này để quan sát key event. Không ghi phím toàn hệ thống.</div>
+            <button class="btn secondary">Start Demo</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:18px">
+        <div class="section-title">
+          <h2>Power Control</h2>
+          <span>Thao tác nguy hiểm cần xác nhận và ghi log</span>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn warning">Restart máy</button>
+          <button class="btn danger">Shutdown máy</button>
+          <button class="btn ghost">Hủy lệnh đang chờ</button>
+        </div>
+
+        <div class="consent-box">
+          Khi shutdown/restart, dashboard yêu cầu nhập lý do, delay 30 giây, hiển thị cảnh báo trên Agent và lưu audit log.
+        </div>
+      </section>
+
+      <div class="footer-note">
+        Prototype UI này dùng cho mục đích học thuật: quản trị phòng lab có xác thực, phân quyền, consent và audit log.
+      </div>
+    </main>
+  </div>
+</body>
+</html>

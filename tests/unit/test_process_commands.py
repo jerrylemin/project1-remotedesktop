@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from apps.agent.config import AgentSettings
+from apps.agent.commands import handle_command
 from apps.agent.job_runner import JobPolicyError, validate_command
 from apps.agent.process_manager import stop_process
 
@@ -20,3 +21,7 @@ def test_pid_validation_and_confirmation() -> None:
     with pytest.raises(PermissionError):
         stop_process(1234, confirm=False)
 
+
+async def test_agent_denies_protected_process_stop(tmp_path) -> None:
+    with pytest.raises(PermissionError):
+        await handle_command("m1", {"action": "stop_process", "pid": 500, "name": "lsass.exe", "confirm": True}, tmp_path)

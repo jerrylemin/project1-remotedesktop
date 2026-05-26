@@ -42,6 +42,10 @@ class AppLauncher(ABC):
     def start_application(self, command: str) -> dict[str, Any]:
         raise NotImplementedError
 
+    @abstractmethod
+    def stop_application(self, name: str, confirm: bool) -> dict[str, Any]:
+        raise NotImplementedError
+
 
 class WebcamProvider(ABC):
     @abstractmethod
@@ -104,6 +108,11 @@ class FakeAppLauncher(AppLauncher):
     def start_application(self, command: str) -> dict[str, Any]:
         return {"pid": 999, "command": command, "fake": True}
 
+    def stop_application(self, name: str, confirm: bool) -> dict[str, Any]:
+        if not confirm:
+            raise ProviderError("application stop requires confirmation")
+        return {"name": name, "stopped": True, "fake": True}
+
 
 class RealAppLauncher(AppLauncher):
     def list_applications(self) -> list[dict[str, Any]]:
@@ -111,6 +120,22 @@ class RealAppLauncher(AppLauncher):
 
     def start_application(self, command: str) -> dict[str, Any]:
         return start_application(command)
+
+    def stop_application(self, name: str, confirm: bool) -> dict[str, Any]:
+        if not confirm:
+            raise ProviderError("application stop requires confirmation")
+        try:
+            import psutil
+        except ImportError as exc:
+            raise ProviderError("psutil is not installed; application stop unavailable") from exc
+        stopped = 0
+        target = name.lower().removesuffix(".exe")
+        for proc in psutil.process_iter(["pid", "name"]):
+            proc_name = str(proc.info.get("name") or "").lower().removesuffix(".exe")
+            if proc_name == target:
+                proc.terminate()
+                stopped += 1
+        return {"name": name, "stopped": stopped}
 
 
 class FakeWebcamProvider(WebcamProvider):
@@ -178,4 +203,3 @@ def build_providers(mode: str) -> AgentProviders:
         input_controller=DemoInputController(),
         sandbox=LocalSandboxRunner(),
     )
-

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from apps.api.db import init_db
-from apps.api.routers import admin_pages, audit, auth, files, internal, jobs, machines, sessions, ws_auth
+from apps.api.routers import admin_pages, audit, auth, dashboard, files, internal, jobs, machines, sessions, ws_auth
 
 
 @asynccontextmanager
@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory="apps/api/static"), name="static")
     app.include_router(auth.router)
     app.include_router(admin_pages.router)
+    app.include_router(dashboard.router)
     app.include_router(machines.router)
     app.include_router(sessions.router)
     app.include_router(audit.router)

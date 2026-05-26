@@ -1,20 +1,41 @@
 {% extends "base.html" %}
 {% block title %}TelePC Dashboard{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/teacher_dashboard.css">{% endblock %}
+{% block page_title %}Lab Management Dashboard{% endblock %}
+{% block page_subtitle %}Live machine status, active sessions, command volume, and recent audit activity.{% endblock %}
 {% block content %}
-<section class="page-head">
-  <h1>Dashboard</h1>
-  <button id="refresh">Refresh</button>
+<section class="stats-grid">
+  <article class="card stat-card"><span id="online-count">0</span><small>Online machines</small></article>
+  <article class="card stat-card"><span id="stale-count">0</span><small>Stale/offline machines</small></article>
+  <article class="card stat-card"><span id="active-count">0</span><small>Active screen sessions</small></article>
+  <article class="card stat-card"><span id="commands-count">0</span><small>Commands today</small></article>
 </section>
-<section class="metrics">
-  <article><span id="online-count">0</span><small>Online machines</small></article>
-  <article><span id="offline-count">0</span><small>Offline machines</small></article>
-  <article><span id="active-count">0</span><small>Active sessions</small></article>
-  <article><span id="recent-count">0</span><small>Recent actions</small></article>
-</section>
-<section>
-  <h2>Machines</h2>
-  <div id="machine-list" class="table-list"></div>
-</section>
-<script src="/static/js/dashboard.js"></script>
-{% endblock %}
 
+<section class="grid-2">
+  <article class="card">
+    <div class="section-title">
+      <h2>Workstations</h2>
+      <a class="btn secondary" href="/admin/machines">View all</a>
+    </div>
+    <div class="toolbar">
+      <input id="dashboard-search" class="search" placeholder="Search hostname, OS, or machine id">
+      <button id="refresh" class="btn">Refresh</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Hostname</th><th>IP / ID</th><th>OS</th><th>Status</th><th></th></tr></thead>
+        <tbody id="machine-list"></tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="card">
+    <div class="section-title">
+      <h2>Recent Audit Logs</h2>
+      <span id="alerts-count" class="muted">0 alerts</span>
+    </div>
+    <div id="recent-audit" class="audit-stack"></div>
+  </article>
+</section>
+{% endblock %}
+{% block scripts %}<script src="/static/js/dashboard.js"></script>{% endblock %}

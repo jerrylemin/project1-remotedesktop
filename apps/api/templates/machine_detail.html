@@ -1,66 +1,138 @@
 {% extends "base.html" %}
 {% block title %}TelePC Machine{% endblock %}
-{% block content %}
-<section class="page-head">
-  <div>
-    <h1 id="machine-title">Machine</h1>
-    <p id="machine-meta"></p>
+{% block body_class %}remote-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="/static/css/teacher_remote_shell.css">{% endblock %}
+{% block chrome %}
+<main class="remote-shell" data-machine-id="{{ machine_id }}">
+  <header class="remote-topbar">
+    <div class="window-dots"><span></span><span></span><span></span></div>
+    <div>
+      <strong id="machine-title">Machine</strong>
+      <small id="machine-meta">Loading machine details...</small>
+    </div>
+    <div id="connection-status" class="remote-status">offline</div>
+    <div class="remote-actions">
+      <button id="claim-control" class="btn">Claim Control</button>
+      <button id="release-control" class="btn ghost">Release</button>
+      <a class="btn ghost" href="/admin/machines">Back</a>
+    </div>
+  </header>
+
+  <section class="machine-header">
+    <div>
+      <h1 id="machine-hostname">Remote Shell</h1>
+      <p id="machine-facts">machine_id={{ machine_id }}</p>
+    </div>
+    <div class="lock-box">
+      <span>Active controller</span>
+      <strong id="active-controller">none</strong>
+    </div>
+  </section>
+
+  <div class="shell-layout">
+    <aside class="module-sidebar">
+      <button class="module-link active" data-panel="overview">Overview</button>
+      <button class="module-link" data-panel="apps">Applications <span id="apps-badge">0</span></button>
+      <button class="module-link" data-panel="processes">Processes <span id="process-badge">0</span></button>
+      <button class="module-link" data-panel="screen">Screen</button>
+      <button class="module-link" data-panel="files">Files</button>
+      <button class="module-link" data-panel="webcam">Webcam</button>
+      <button class="module-link" data-panel="keyboard">Keyboard Demo</button>
+      <button class="module-link danger-link" data-panel="power">Power</button>
+      <button class="module-link" data-panel="audit">Audit Logs</button>
+    </aside>
+
+    <section class="panel-space">
+      <section id="panel-overview" class="remote-panel active">
+        <div class="panel-head"><h2>Overview</h2><span>Consent-visible remote administration</span></div>
+        <div class="overview-grid">
+          <article class="mini-card"><small>Status</small><strong id="overview-status">unknown</strong></article>
+          <article class="mini-card"><small>OS</small><strong id="overview-os">unknown</strong></article>
+          <article class="mini-card"><small>Agent User</small><strong id="overview-user">unknown</strong></article>
+          <article class="mini-card"><small>Last Seen</small><strong id="overview-last-seen">unknown</strong></article>
+        </div>
+        <div class="consent-box">Screen, webcam, keyboard demo, files, and power actions are visible, consent-scoped, and written to audit logs.</div>
+      </section>
+
+      <section id="panel-apps" class="remote-panel">
+        <div class="panel-head"><h2>Applications</h2><span>Allowlisted app control</span></div>
+        <div class="stat-row">
+          <div><strong id="apps-running">0</strong><small>running</small></div>
+          <div><strong id="apps-high-cpu">0</strong><small>high CPU</small></div>
+          <div><strong id="apps-background">0</strong><small>background</small></div>
+        </div>
+        <div class="table-wrap dark"><table><thead><tr><th>App</th><th>Status</th><th>CPU</th><th>Actions</th></tr></thead><tbody id="apps-table"></tbody></table></div>
+      </section>
+
+      <section id="panel-processes" class="remote-panel">
+        <div class="panel-head"><h2>Processes</h2><span>Protected system processes cannot be stopped</span></div>
+        <button id="refresh-processes" class="btn secondary">Refresh Processes</button>
+        <div class="table-wrap dark"><table><thead><tr><th>PID</th><th>Name</th><th>CPU</th><th>RAM</th><th></th></tr></thead><tbody id="process-table"></tbody></table></div>
+      </section>
+
+      <section id="panel-screen" class="remote-panel">
+        <div class="panel-head"><h2>Screen</h2><span id="screen-mode-label">Screenshot mode</span></div>
+        <div class="toolbar">
+          <button id="capture-screen" class="btn">Capture</button>
+          <button id="start-screen" class="btn secondary">Start Live</button>
+          <button id="stop-screen" class="btn ghost">Stop</button>
+          <a id="download-screen" class="btn ghost" href="#" download="telepc-screen.jpg">Download Image</a>
+          <span id="fps-label" class="fps-label">0 fps</span>
+        </div>
+        <div class="screen-frame"><img id="remote-screen" alt="Remote screen frame"></div>
+        <div class="consent-box">The agent displays a visible notice while screen viewing is active.</div>
+      </section>
+
+      <section id="panel-files" class="remote-panel">
+        <div class="panel-head"><h2>File Sandbox</h2><span>Sandbox only, no whole-drive browsing</span></div>
+        <div class="toolbar"><input id="file-input" type="file"><button id="upload-file" class="btn">Upload</button><button id="refresh-files" class="btn secondary">Refresh</button></div>
+        <p class="sandbox-note">Sandbox root: <code>sandbox_root/&lt;machine_id&gt;/&lt;job_id&gt;</code>. Path traversal is rejected by the agent.</p>
+        <h3>Artifacts dispatched to this machine</h3>
+        <div id="files-output" class="stack-list"></div>
+        <h3>Job history</h3>
+        <div id="jobs-output" class="stack-list"></div>
+      </section>
+
+      <section id="panel-webcam" class="remote-panel">
+        <div class="panel-head"><h2>Webcam</h2><span id="webcam-status">camera off</span></div>
+        <div class="webcam-preview" id="webcam-preview">Camera preview starts only after consent.</div>
+        <label class="check-line"><input id="webcam-consent" type="checkbox"> Consent was confirmed on the client machine.</label>
+        <div class="toolbar"><button id="webcam-start" class="btn">Start Webcam</button><button id="webcam-stop" class="btn ghost">Stop Webcam</button><button id="webcam-snapshot" class="btn secondary">Snapshot</button></div>
+        <div class="consent-box">Webcam requests require explicit consent and are logged per machine.</div>
+      </section>
+
+      <section id="panel-keyboard" class="remote-panel">
+        <div class="panel-head"><h2>Keyboard Demo</h2><span id="keyboard-state">stopped</span></div>
+        <div class="consent-box">This demo only records keys typed inside the box below. It does not capture global system keystrokes.</div>
+        <textarea id="keyboard-input" placeholder="Type here for the demo feed only"></textarea>
+        <div class="toolbar"><button id="keyboard-toggle" class="btn">Start Demo</button><button id="keyboard-clear" class="btn ghost">Clear</button><button id="keyboard-export" class="btn secondary">Export</button></div>
+        <div id="keyboard-feed" class="key-feed"></div>
+      </section>
+
+      <section id="panel-power" class="remote-panel">
+        <div class="panel-head"><h2>Power</h2><span>Danger zone</span></div>
+        <div class="power-grid">
+          <button class="power-card" data-power="lock"><strong>Lock</strong><small>Lock screen</small></button>
+          <button class="power-card" data-power="sleep"><strong>Sleep</strong><small>Suspend machine</small></button>
+          <button class="power-card warning" data-power="restart"><strong>Restart</strong><small>Requires reason</small></button>
+          <button class="power-card danger" data-power="shutdown"><strong>Shutdown</strong><small>Requires reason</small></button>
+        </div>
+        <div id="power-result" class="result-line"></div>
+      </section>
+
+      <section id="panel-audit" class="remote-panel">
+        <div class="panel-head"><h2>Audit Logs</h2><span>Only this machine</span></div>
+        <div class="toolbar"><input id="audit-event-filter" placeholder="event type"><button id="refresh-audit" class="btn secondary">Refresh</button></div>
+        <div id="audit-list" class="audit-stack"></div>
+      </section>
+    </section>
   </div>
-  <div class="actions">
-    <button id="claim-control">Claim Control</button>
-    <button id="release-control">Release</button>
-  </div>
-</section>
-<section class="tabs">
-  <button data-tab="screen" class="active">Remote Screen</button>
-  <button data-tab="processes">Processes</button>
-  <button data-tab="apps">Applications</button>
-  <button data-tab="files">Files Sandbox</button>
-  <button data-tab="webcam">Webcam</button>
-  <button data-tab="audit">Audit Logs</button>
-</section>
-<section id="tab-screen" class="tab-panel active">
-  <div class="toolbar">
-    <button id="start-screen">Start</button>
-    <button id="stop-screen">Stop</button>
-  </div>
-  <img id="remote-screen" class="remote-screen" alt="Remote screen frame">
-</section>
-<section id="tab-processes" class="tab-panel"><button data-command="list_processes">List Processes</button><pre id="process-output"></pre></section>
-<section id="tab-apps" class="tab-panel"><button data-command="list_applications">List Applications</button><pre id="apps-output"></pre></section>
-<section id="tab-files" class="tab-panel">
-  <div class="toolbar"><input id="file-input" type="file"><button id="upload-file">Upload</button><button id="refresh-files">Refresh</button></div>
-  <h3>Sandbox Files</h3>
-  <div id="files-output" class="table-list"></div>
-  <h3>Job History</h3>
-  <div id="jobs-output" class="table-list"></div>
-</section>
-<section id="tab-webcam" class="tab-panel"><label><input id="webcam-confirm" type="checkbox"> Confirm webcam consent</label><button id="webcam-start">Start Webcam</button><button id="webcam-stop">Stop Webcam</button></section>
-<section id="tab-audit" class="tab-panel">
-  <div class="filters">
-    <input id="audit-event-filter" placeholder="event type">
-    <select id="audit-actor-filter">
-      <option value="">all actors</option>
-      <option value="admin">admin</option>
-      <option value="agent">agent</option>
-      <option value="system">system</option>
-    </select>
-    <input id="audit-start-filter" type="datetime-local">
-    <input id="audit-end-filter" type="datetime-local">
-    <button id="refresh-audit">Refresh Audit</button>
-  </div>
-  <div id="audit-list" class="audit-list"></div>
-</section>
-<section class="danger">
-  <h2>Danger Zone</h2>
-  <label>Type CONFIRM <input id="danger-confirm" placeholder="CONFIRM"></label>
-  <button data-danger="restart">Restart</button>
-  <button data-danger="shutdown">Shutdown</button>
-</section>
-<aside class="recent-audit">
-  <h2>Recent Audit</h2>
-  <div id="recent-audit"></div>
-</aside>
+
+  <aside class="recent-audit"><h2>Recent Actions</h2><div id="recent-audit"></div></aside>
+  {% include "partials/confirm_modal.html" %}
+</main>
 <script>window.MACHINE_ID = "{{ machine_id }}";</script>
+<script src="/static/js/ws_client.js"></script>
+<script src="/static/js/files.js"></script>
 <script src="/static/js/machine_detail.js"></script>
 {% endblock %}

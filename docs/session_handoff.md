@@ -1,10 +1,10 @@
 # Session Handoff
 
-Date: 2026-05-23
+Date: 2026-05-26
 
 ## Current State
 
-The repo was initially empty. A runnable TelePC scaffold was implemented with API, relay, fake agent, UI, docs, and tests.
+TelePC now has the teacher prototype UI applied as real FastAPI/Jinja pages and static assets. The existing backend, relay, fake agent, real-agent provider structure, auth, roles, audit logs, file sandbox, sessions, and controller lock flow were preserved.
 
 ## Commands
 
@@ -14,30 +14,39 @@ python scripts/create_admin.py
 python scripts/run_api.py
 python scripts/run_relay.py
 python scripts/run_fake_agent.py
-python -m compileall .
-pytest -q
+python scripts/run_3_fake_agents.py
+py -3.12 -m compileall .
+py -3.12 -m pytest -q
 ```
 
 ## Verification
 
-- `python -m compileall .`: passed.
-- `pytest -q`: passed, `35 passed`, no FastAPI deprecation warnings.
-- Smoke test passed: `create_admin.py` seeds admin plus `fake-machine-001`; API login and `/api/machines` returned the fake machine while API, relay, and fake agent were running.
+- `py -3.12 -m compileall .`: passed.
+- `py -3.12 -m pytest -q`: passed, `42 passed`.
+- Default `python` on this machine is Python 3.10. It cannot run the suite because the project requires Python 3.11+ and imports `datetime.UTC`.
 
-## Hardening Update
+## Teacher Prototype UI Update
 
-- Commit message: `Harden remote desktop relay agent audit and sandbox`; final hash is reported in the session result.
-- Replaced FastAPI `on_event` startup with lifespan.
-- Added short-lived single-use WS tickets issued from the HttpOnly admin session.
-- Relay validates WS tickets through API internal endpoint using `INTERNAL_API_SECRET`.
-- Relay audit bridge now uses a background queue and retrying API posts.
-- Machine status online/stale/offline persists to DB and writes audit only on transition.
-- Agent now has provider abstractions for screen, process, app launch, webcam, input, and sandbox runner.
-- Missing optional real-agent dependencies return clear provider errors instead of crashing.
-- Machine detail UI now has audit filters, sandbox file metadata, and job history.
-- Added `scripts/run_3_fake_agents.py`.
+- Prototype files found in `docs/teacher_prototypes/`.
+- `Topic01_Prototype.html` mapped to the bright dashboard, machines, audit index, shared sidebar/topbar, and dashboard CSS/JS.
+- `remote_control_web_prototype.html` mapped to the dark machine detail remote shell, module sidebar, consent notices, confirm modal, relay client, and machine detail JS.
+- Added `GET /api/dashboard/summary` and `GET /api/dashboard/recent-audit`.
+- Added audited machine action endpoints for applications, processes, screen, webcam, power, sandbox files, and sandbox jobs.
+- Protected process denial is enforced in the API and agent command handler.
+- Power actions require `confirm` and a non-empty `reason`.
+- Commit message: `Apply teacher prototype UI to remote desktop project`; final commit hash is reported in the session result.
+
+## Files Changed
+
+- API/backend: `apps/api/routers/dashboard.py`, `apps/api/routers/machines.py`, `apps/api/routers/admin_pages.py`, `apps/api/main.py`, `apps/api/schemas.py`, `apps/api/services/audit.py`.
+- Agent safety/actions: `apps/agent/commands.py`, `apps/agent/providers.py`.
+- Templates: `apps/api/templates/base.html`, `dashboard.html`, `machines.html`, `machine_detail.html`, `audit.html`, `partials/*`.
+- Static assets: `apps/api/static/css/app.css`, `teacher_dashboard.css`, `teacher_remote_shell.css`, `apps/api/static/js/dashboard.js`, `machines.js`, `machine_detail.js`, `audit.js`, `files.js`, `ws_client.js`.
+- Tests: `tests/integration/test_teacher_ui_routes.py`, `tests/unit/test_process_commands.py`.
+- Docs: `README.md`, `docs/report.md`, `docs/demo_script.md`, `docs/ui_prototype_mapping.md`, `docs/session_handoff.md`, `docs/feature_progress.md`.
 
 ## Next Work
 
 - Validate real-agent behavior on a physical Windows lab machine with optional dependencies installed.
 - Harden Alembic async/sync migration execution if migrations are used beyond metadata create.
+- Consider a server-side relay command bridge if future UI actions must be initiated without browser WebSocket control.

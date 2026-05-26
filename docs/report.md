@@ -18,15 +18,19 @@ The API server owns persistent state and HTML pages. The relay owns transient We
 
 The hardened design adds short-lived WebSocket tickets so the browser does not expose long-lived admin tokens to JavaScript. Relay-to-API calls use an internal shared secret. Relay audit writes are sent through a background queue so audit failures cannot break active WebSocket sessions. Machine status is persisted through explicit online, stale, and offline transitions.
 
+The teacher UI prototypes were applied as real product surfaces. `Topic01_Prototype.html` drives the bright admin dashboard and machine list: left navigation groups, dashboard cards, workstation table, and recent audit activity. `remote_control_web_prototype.html` drives the dark single-machine shell: connected topbar, module sidebar, Applications, Processes, Screen, Keyboard Demo, Files, Webcam, Power, and per-machine Audit Logs. Static prototype data was replaced with API calls and relay WebSocket events.
+
 ## Chapter 5: Implementation
 
 The project uses Python 3.11, FastAPI, SQLAlchemy async, Jinja2, WebSocket relay endpoints, and a Python agent. Shared Pydantic envelopes keep relay protocol messages consistent.
 
 The agent now uses provider abstractions for screen capture, process operations, application launch, webcam, input, and sandbox jobs. Each provider has fake and real implementations, and real providers return clear errors when optional Windows dependencies are missing. The UI includes machine audit filters and sandbox/job history views.
 
+New UI implementation files include `apps/api/templates/base.html`, `dashboard.html`, `machines.html`, `machine_detail.html`, partials under `apps/api/templates/partials`, dashboard/shell CSS under `apps/api/static/css`, and page/relay JS under `apps/api/static/js`. New API support includes dashboard summary/recent-audit endpoints, per-machine sandbox aliases, and audited machine action endpoints for application, process, screen, webcam, and power requests.
+
 ## Chapter 6: Testing
 
-The test suite contains 35 tests covering auth, ACL, protocol validation, sandbox defense, audit redaction, command policy, enrollment, machine listing, session lock, audit order, file/job flow, relay frame forwarding, WS ticket auth, observer/controller enforcement, relay audit bridge queueing, status transitions, optional dependency fallback, audit filters, and job history.
+The test suite contains 42 tests covering auth, ACL, protocol validation, sandbox defense, audit redaction, command policy, enrollment, machine listing, session lock, audit order, file/job flow, relay frame forwarding, WS ticket auth, observer/controller enforcement, relay audit bridge queueing, status transitions, optional dependency fallback, audit filters, job history, dashboard APIs, page rendering, per-machine audit filtering, protected process denial, power confirmation/reason checks, and sandbox alias routes.
 
 ## Chapter 7: Conclusion
 

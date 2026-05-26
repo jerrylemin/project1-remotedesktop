@@ -1,0 +1,18 @@
+<dialog class="confirm-modal" id="confirm-modal">
+  <form method="dialog">
+    <h2 id="confirm-title">Confirm action</h2>
+    <p id="confirm-message">This action requires explicit confirmation.</p>
+    <label>
+      Reason
+      <textarea id="confirm-reason" rows="3" required placeholder="Reason for audit log"></textarea>
+    </label>
+    <label class="check-line">
+      <input id="confirm-check" type="checkbox">
+      I understand this will be audited.
+    </label>
+    <div class="modal-actions">
+      <button value="cancel" class="btn ghost">Cancel</button>
+      <button id="confirm-submit" value="confirm" class="btn danger">Confirm</button>
+    </div>
+  </form>
+</dialog>

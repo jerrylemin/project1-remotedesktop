@@ -5,19 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}TelePC{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  {% block styles %}{% endblock %}
 </head>
-<body>
-  <aside class="sidebar">
-    <div class="brand">TelePC</div>
-    <a href="/admin/dashboard">Dashboard</a>
-    <a href="/admin/machines">Machines</a>
-    <a href="/admin/audit">Audit Logs</a>
-    <a href="/admin/machines">Files</a>
-    <a href="/admin/dashboard">Settings</a>
-  </aside>
-  <main class="content">
-    {% block content %}{% endblock %}
-  </main>
+<body class="{% block body_class %}dashboard-shell{% endblock %}">
+  {% block chrome %}
+    <div class="app-layout">
+      {% include "partials/sidebar.html" %}
+      <main class="main">
+        {% include "partials/topbar.html" %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  {% endblock %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>
-

@@ -15,25 +15,24 @@ async def root() -> RedirectResponse:
 
 @router.get("/admin/login", response_class=HTMLResponse)
 async def login_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html")
 
 
 @router.get("/admin/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    return templates.TemplateResponse(request, "dashboard.html")
 
 
 @router.get("/admin/machines", response_class=HTMLResponse)
 async def machines_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("machines.html", {"request": request})
+    return templates.TemplateResponse(request, "machines.html")
 
 
 @router.get("/admin/machines/{machine_id}", response_class=HTMLResponse)
 async def machine_page(request: Request, machine_id: str) -> HTMLResponse:
-    return templates.TemplateResponse("machine_detail.html", {"request": request, "machine_id": machine_id})
+    return templates.TemplateResponse(request, "machine_detail.html", {"machine_id": machine_id})
 
 
 @router.get("/admin/audit", response_class=HTMLResponse)
 async def audit_page(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse("audit.html", {"request": request})
-
+    return templates.TemplateResponse(request, "audit.html")
