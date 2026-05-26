@@ -10,6 +10,7 @@ from apps.agent.config import AgentSettings, get_agent_settings
 from apps.agent.machine_info import collect_machine_info
 from apps.agent.providers import ProviderError, build_providers
 from apps.agent.screen import screen_fps
+from apps.agent.webcam import webcam_fps
 from shared.enums import EnvelopeType
 from shared.protocol import Envelope, make_envelope
 
@@ -35,6 +36,7 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                 await ws.recv()
                 frame_task = asyncio.create_task(send_frames(ws, settings, providers))
                 heartbeat_task = asyncio.create_task(send_heartbeats(ws, settings))
+                webcam_task: asyncio.Task | None = None
                 try:
                     async for raw in ws:
                         envelope = Envelope.model_validate_json(raw)
@@ -42,6 +44,15 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                             try:
                                 result = await handle_command(settings.machine_id, envelope.payload, settings.sandbox_root, providers)
                                 payload = {"ok": True, "result": result}
+                                action = envelope.payload.get("action")
+                                if action == "webcam" and envelope.payload.get("start"):
+                                    if webcam_task is not None:
+                                        webcam_task.cancel()
+                                    webcam_task = asyncio.create_task(send_webcam_frames(ws, settings, providers))
+                                elif action == "webcam" and not envelope.payload.get("start"):
+                                    if webcam_task is not None:
+                                        webcam_task.cancel()
+                                        webcam_task = None
                             except ProviderError as exc:
                                 payload = {"ok": False, "error": str(exc), "event_type": "command_failed"}
                             except Exception as exc:
@@ -50,6 +61,8 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                 finally:
                     frame_task.cancel()
                     heartbeat_task.cancel()
+                    if webcam_task is not None:
+                        webcam_task.cancel()
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -67,6 +80,17 @@ async def send_frames(ws, settings: AgentSettings, providers) -> None:
             payload = {"error": str(exc), "event_type": "command_failed"}
         await ws.send(json.dumps(make_envelope(EnvelopeType.FRAME, machine_id=settings.machine_id, payload=payload)))
         await asyncio.sleep(1 / max(1, screen_fps()))
+
+
+async def send_webcam_frames(ws, settings: AgentSettings, providers) -> None:
+    while True:
+        try:
+            payload = providers.webcam.snapshot(settings.machine_id)
+        except ProviderError as exc:
+            await ws.send(json.dumps(make_envelope(EnvelopeType.COMMAND_RESULT, machine_id=settings.machine_id, payload={"ok": False, "error": str(exc), "event_type": "command_failed"})))
+            return
+        await ws.send(json.dumps(make_envelope(EnvelopeType.FRAME, machine_id=settings.machine_id, payload=payload)))
+        await asyncio.sleep(1 / max(1, webcam_fps()))
 
 
 async def send_heartbeats(ws, settings: AgentSettings) -> None:

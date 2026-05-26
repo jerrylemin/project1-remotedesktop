@@ -111,6 +111,7 @@ Unresolved risks:
 - Follow-up fix after real-machine logs: UI now requires an active claim before dispatching relay commands, checks webcam consent before calling the API, surfaces upload validation details, and routes file dispatch through `/api/machines/{id}/file-dispatch`.
 - Follow-up lock fix: repeated `POST /api/sessions` by the same admin now returns the existing active session instead of `409`, preventing refresh/interrupted-browser stale self-locks. Different admins still receive `409`.
 - Follow-up webcam fix: `webcam/start` now returns an initial preview frame, and the UI no longer overwrites webcam images with status text.
+- Follow-up webcam live fix: agent now keeps OpenCV camera open during webcam sessions and streams `webcam_frame` envelopes continuously. Tunables: `TELEPC_WEBCAM_FPS` (default 15, max 30), `TELEPC_WEBCAM_JPEG_QUALITY` (default 55), `TELEPC_WEBCAM_WIDTH`/`HEIGHT` (default 640x360).
 
 Commit hash:
 

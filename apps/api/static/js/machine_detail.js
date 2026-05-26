@@ -10,6 +10,10 @@ const fmtDate = value => value ? new Date(value).toLocaleString() : "never";
 
 const wsClient = new TelepcWsClient(machineId, {
   onFrame: frame => {
+    if (frame?.type === "webcam_frame") {
+      renderWebcamFrame(frame);
+      return;
+    }
     const jpeg = typeof frame === "string" ? frame : (frame.data || frame.jpeg_b64);
     if (!jpeg) return;
     if (typeof frame === "object") lastFrameMeta = { width: frame.width || 640, height: frame.height || 360 };
@@ -27,6 +31,13 @@ const wsClient = new TelepcWsClient(machineId, {
     el.className = `remote-status ${status}`;
   },
 });
+
+function renderWebcamFrame(frame) {
+  const jpeg = frame.data || frame.jpeg_b64;
+  if (!jpeg) return;
+  document.getElementById("webcam-preview").innerHTML = `<img alt="Webcam frame" src="data:image/jpeg;base64,${esc(jpeg)}">`;
+  document.getElementById("webcam-status").textContent = frame.fps ? `live ${frame.fps} fps` : "live";
+}
 
 async function jsonFetch(url, options = {}) {
   const res = await fetch(url, { headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
@@ -87,7 +98,7 @@ function handleWsResult(msg) {
   if (result.applications) renderApplications(result.applications);
   const webcamFrame = result.webcam_frame || (result.type === "webcam_frame" ? result : null);
   if (webcamFrame) {
-    document.getElementById("webcam-preview").innerHTML = `<img alt="Webcam frame" src="data:image/jpeg;base64,${esc(webcamFrame.data || webcamFrame.jpeg_b64)}">`;
+    renderWebcamFrame(webcamFrame);
   }
   if (result.webcam) {
     document.getElementById("webcam-status").textContent = result.webcam;

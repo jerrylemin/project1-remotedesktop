@@ -235,3 +235,12 @@ Test-NetConnection <SERVER_IP> -Port 8001
 - Physical Windows validation is still required for real screen FPS, real input, webcam, and power commands.
 - Real input and real power are intentionally opt-in environment-gated features.
 - File dispatch supports inline bytes up to 512 KB; larger files are prepared for signed download URL handoff.
+
+Webcam live tuning for real agents:
+
+```powershell
+$env:TELEPC_WEBCAM_FPS="15"              # 1..30
+$env:TELEPC_WEBCAM_JPEG_QUALITY="55"    # 25..90
+$env:TELEPC_WEBCAM_WIDTH="640"
+$env:TELEPC_WEBCAM_HEIGHT="360"
+```

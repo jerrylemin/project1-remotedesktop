@@ -10,7 +10,7 @@ from apps.agent.job_runner import command_from_schema, run_job
 from apps.agent.process_manager import list_processes, stop_process
 from apps.agent.sandbox import job_sandbox
 from apps.agent.screen import fake_jpeg_frame, frame_payload, real_jpeg_frame
-from apps.agent.webcam import cv2_snapshot, fake_webcam_frame, webcam_status
+from apps.agent.webcam import encode_cv2_frame, fake_webcam_frame, webcam_fps, webcam_height, webcam_status, webcam_width
 
 
 class ProviderError(RuntimeError):
@@ -143,18 +143,60 @@ class FakeWebcamProvider(WebcamProvider):
 
 
 class RealWebcamProvider(WebcamProvider):
+    def __init__(self) -> None:
+        self._capture = None
+        self._frame_no = 0
+
     def set_webcam(self, start: bool, consent: bool) -> dict[str, Any]:
         try:
-            import cv2  # noqa: F401
+            import cv2
         except ImportError as exc:
             raise ProviderError("opencv-python is not installed; webcam unavailable") from exc
+        if start and consent:
+            self._release()
+            capture = cv2.VideoCapture(0)
+            capture.set(cv2.CAP_PROP_FRAME_WIDTH, webcam_width())
+            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, webcam_height())
+            capture.set(cv2.CAP_PROP_FPS, webcam_fps())
+            try:
+                capture.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            except Exception:
+                pass
+            if not capture.isOpened():
+                capture.release()
+                raise ProviderError("webcam camera unavailable")
+            self._capture = capture
+            self._frame_no = 0
+        elif not start:
+            self._release()
         return webcam_status(start, consent)
 
     def snapshot(self, machine_id: str) -> dict[str, Any]:
         try:
-            return cv2_snapshot(machine_id)
+            import cv2
         except RuntimeError as exc:
             raise ProviderError(str(exc)) from exc
+        except ImportError as exc:
+            raise ProviderError("opencv-python is not installed; webcam unavailable") from exc
+        temporary = False
+        capture = self._capture
+        if capture is None:
+            capture = cv2.VideoCapture(0)
+            temporary = True
+        try:
+            ok, frame = capture.read()
+            if not ok:
+                raise ProviderError("webcam frame unavailable")
+            self._frame_no += 1
+            return encode_cv2_frame(frame, machine_id, self._frame_no)
+        finally:
+            if temporary:
+                capture.release()
+
+    def _release(self) -> None:
+        if self._capture is not None:
+            self._capture.release()
+            self._capture = None
 
 
 class DemoInputController(InputController):
