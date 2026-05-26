@@ -252,4 +252,4 @@ $env:TELEPC_ENABLE_REAL_INPUT="true"
 py -3.12 client.py --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --mode real
 ```
 
-In the browser, claim control, open Keyboard Demo, click `Start Real Input`, then type inside the demo box. TelePC forwards key codes such as `KeyA` and `Enter`; it does not capture global keystrokes or store typed characters.
+In the browser, claim control, open Keyboard Demo, click `Start Real Input`, then type inside the demo box. TelePC waits for the relay to acknowledge the admin WebSocket as `controller` before sending key events. It forwards key codes such as `KeyA` and `Enter`; it does not capture global keystrokes or store typed characters.

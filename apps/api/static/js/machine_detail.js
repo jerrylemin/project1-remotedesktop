@@ -106,8 +106,21 @@ function handleWsResult(msg) {
       document.getElementById("webcam-preview").textContent = result.webcam === "started" ? "Webcam active with consent" : "Camera preview starts only after consent.";
     }
   }
+  if (result.event && result.key_event_count) {
+    const state = result.error || (result.demo_safe ? "demo-safe: TELEPC_ENABLE_REAL_INPUT is not true" : "real input sent");
+    appendKeyboardFeed(result.event, state);
+    document.getElementById("keyboard-state").textContent = state;
+  }
   if (result.action && result.demo_safe) document.getElementById("power-result").textContent = `${result.action} accepted for demo-safe agent flow`;
   loadAudit().catch(() => {});
+}
+
+function appendKeyboardFeed(eventName, detail) {
+  const feed = document.getElementById("keyboard-feed");
+  const line = document.createElement("div");
+  line.textContent = `${new Date().toLocaleTimeString()} ${eventName} ${detail}`;
+  feed.appendChild(line);
+  feed.scrollTop = feed.scrollHeight;
 }
 
 function renderApplications(apps) {
@@ -246,25 +259,23 @@ document.getElementById("full-control-toggle").addEventListener("change", event 
   document.getElementById("full-control-label").textContent = event.target.checked ? "Full Control ON - Requires active claim" : "Full Control OFF";
 });
 
-function sendInput(eventName, event) {
+async function sendInput(eventName, event) {
   if (!document.getElementById("full-control-toggle").checked || !currentSessionId) return;
   const image = document.getElementById("remote-screen");
   const rect = image.getBoundingClientRect();
   const x = Math.round((event.offsetX ?? (event.clientX - rect.left)) * lastFrameMeta.width / Math.max(1, rect.width));
   const y = Math.round((event.offsetY ?? (event.clientY - rect.top)) * lastFrameMeta.height / Math.max(1, rect.height));
-  wsClient.connect({ control: true }).then(() => wsClient.send("input_event", { action: "input_event", event: eventName, x, y, delta_y: event.deltaY })).catch(alert);
+  try {
+    await wsClient.connect({ control: true });
+    wsClient.send("input_event", { action: "input_event", event: eventName, x, y, delta_y: event.deltaY });
+  } catch (error) {
+    alert(error.message || error);
+  }
 }
 
 ["mousemove", "mousedown", "mouseup", "click", "dblclick", "wheel"].forEach(name => {
   document.getElementById("remote-screen").addEventListener(name, event => sendInput(name.replace("mouse", "mouse_"), event));
 });
-document.addEventListener("keydown", event => {
-  if (document.getElementById("full-control-toggle").checked && currentSessionId) wsClient.connect({ control: true }).then(() => wsClient.send("input_event", { action: "input_event", event: "key_down", code: event.code })).catch(alert);
-});
-document.addEventListener("keyup", event => {
-  if (document.getElementById("full-control-toggle").checked && currentSessionId) wsClient.connect({ control: true }).then(() => wsClient.send("input_event", { action: "input_event", event: "key_up", code: event.code })).catch(alert);
-});
-
 document.getElementById("upload-file").addEventListener("click", async () => {
   try {
     requireClaim("Claim control before dispatching files to the agent sandbox.");
@@ -307,7 +318,7 @@ document.getElementById("keyboard-toggle").addEventListener("click", () => {
   document.getElementById("keyboard-toggle").textContent = keyboardRunning ? "Stop Real Input" : "Start Real Input";
 });
 
-function sendKeyboardDemoEvent(eventName, event) {
+async function sendKeyboardDemoEvent(eventName, event) {
   if (!keyboardRunning) return;
   if (!currentSessionId) {
     alert("Claim control before sending keyboard input.");
@@ -317,14 +328,14 @@ function sendKeyboardDemoEvent(eventName, event) {
     return;
   }
   event.preventDefault();
-  wsClient.connect({ control: true })
-    .then(() => wsClient.send("input_event", { action: "input_event", event: eventName, code: event.code }))
-    .catch(alert);
-  const feed = document.getElementById("keyboard-feed");
-  const line = document.createElement("div");
-  line.textContent = `${new Date().toLocaleTimeString()} ${eventName} ${event.code}`;
-  feed.appendChild(line);
-  feed.scrollTop = feed.scrollHeight;
+  try {
+    await wsClient.connect({ control: true });
+    wsClient.send("input_event", { action: "input_event", event: eventName, code: event.code });
+    appendKeyboardFeed(eventName, event.code);
+  } catch (error) {
+    appendKeyboardFeed(eventName, error.message || error);
+    alert(error.message || error);
+  }
 }
 
 document.getElementById("keyboard-input").addEventListener("keydown", event => sendKeyboardDemoEvent("key_down", event));

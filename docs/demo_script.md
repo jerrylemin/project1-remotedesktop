@@ -66,7 +66,7 @@ Target length: 5 to 7 minutes.
 4. Explain path traversal is blocked and the UI does not browse the full drive.
 5. Open Webcam, check the consent box, start/stop webcam, and show the consent message.
 6. Open Keyboard Demo, start it, type only inside the demo box, then clear/export the feed.
-7. State that it never records global system keystrokes.
+7. State that the browser waits for controller acknowledgment before forwarding key codes and never records global system keystrokes.
 
 ## Scene 7 - Power and Audit Logs (5:45-7:00)
 
@@ -92,4 +92,4 @@ Target length: 5 to 7 minutes.
 3. Confirm the visible agent banner is present on the test machine.
 4. In the browser, claim control before sending actions.
 5. Validate psutil process/app data, screen capture/live frames, sandbox file put/get, webcam consent/snapshot, and demo-safe power.
-6. Only set `TELEPC_ENABLE_REAL_INPUT=true` for the short input segment, then unset it after recording.
+6. Only set `TELEPC_ENABLE_REAL_INPUT=true` for the short Keyboard Demo input segment, focus Notepad on the agent desktop, type inside the browser demo box, then unset it after recording.

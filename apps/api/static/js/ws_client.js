@@ -6,6 +6,7 @@ class TelepcWsClient {
     this.onStatus = onStatus || (() => {});
     this.ws = null;
     this.role = "observer";
+    this.roleWaiters = [];
   }
 
   async ticket() {
@@ -21,7 +22,7 @@ class TelepcWsClient {
 
   async connect({ control = false } = {}) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      if (control && this.role !== "controller") this.subscribe(true);
+      if (control && this.role !== "controller") await this.subscribe(true);
       return;
     }
     this.onStatus("reconnecting");
@@ -40,17 +41,49 @@ class TelepcWsClient {
     });
     this.ws.addEventListener("message", event => this.handle(JSON.parse(event.data)));
     this.ws.addEventListener("close", () => this.onStatus("offline"));
-    this.subscribe(control);
+    await this.subscribe(control);
   }
 
-  subscribe(control = false) {
+  async subscribe(control = false) {
+    const waitForController = control ? this.waitForRole("controller") : null;
     this.send("subscribe_machine", { control });
+    if (waitForController) await waitForController;
+  }
+
+  waitForRole(role, timeoutMs = 5000) {
+    if (this.role === role) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const waiter = { role, resolve, reject, timer: null };
+      waiter.timer = setTimeout(() => {
+        this.roleWaiters = this.roleWaiters.filter(item => item !== waiter);
+        reject(new Error(`WebSocket did not become ${role}`));
+      }, timeoutMs);
+      this.roleWaiters.push(waiter);
+    });
+  }
+
+  resolveRoleWaiters() {
+    const ready = this.roleWaiters.filter(waiter => waiter.role === this.role);
+    this.roleWaiters = this.roleWaiters.filter(waiter => waiter.role !== this.role);
+    ready.forEach(waiter => {
+      clearTimeout(waiter.timer);
+      waiter.resolve();
+    });
   }
 
   handle(msg) {
     if (msg.type === "ack" && msg.payload?.role) {
       this.role = msg.payload.role;
       this.onStatus(this.role === "controller" ? "online" : "observer");
+      this.resolveRoleWaiters();
+    }
+    if (msg.type === "error") {
+      const detail = msg.payload?.detail || "Relay error";
+      this.roleWaiters.forEach(waiter => {
+        clearTimeout(waiter.timer);
+        waiter.reject(new Error(detail));
+      });
+      this.roleWaiters = [];
     }
     if (msg.type === "frame" && (msg.payload?.jpeg_b64 || msg.payload?.data)) this.onFrame(msg.payload);
     if (msg.type === "command_result" || msg.type === "error" || msg.type === "job_status") this.onResult(msg);

@@ -25,7 +25,7 @@ UI description for submission screenshots:
 - Dashboard: light administrative layout with a dark left sidebar, four metric cards, workstation table, search/refresh controls, and recent audit feed.
 - Machines: searchable/filterable table with hostname, machine id, OS, status pill, last seen, active controller, and Manage action.
 - Machine detail: dark remote shell with connected topbar, machine metadata header, module sidebar, screen frame viewer, sandbox panel, consent notices, confirmation modal, and per-machine audit panel.
-- Safety UI: webcam consent checkbox, Keyboard Demo text area scoped to browser input only, Power reason modal, and sandbox-only file messaging.
+- Safety UI: webcam consent checkbox, Keyboard Demo text area scoped to browser input only, controller-ack wait before input forwarding, Power reason modal, and sandbox-only file messaging.
 
 ## Chapter 5: Implementation
 
