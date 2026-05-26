@@ -53,3 +53,4 @@
 - Webcam snapshot/start remains consent-gated; fake frames are available for CI.
 - Power commands are demo-safe unless `TELEPC_ENABLE_REAL_POWER=true`.
 - LAN helper scripts and `docs/REAL_MACHINE_TEST_CHECKLIST.md` were added.
+- Follow-up UI guard: machine commands now stop client-side with clear messages when control has not been claimed, webcam consent is unchecked, or uploads fail validation; file upload dispatch now uses the real `/api/machines/{id}/file-dispatch` command path.

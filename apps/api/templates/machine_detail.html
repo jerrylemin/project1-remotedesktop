@@ -87,7 +87,7 @@
 
       <section id="panel-files" class="remote-panel">
         <div class="panel-head"><h2>File Sandbox</h2><span>Sandbox only, no whole-drive browsing</span></div>
-        <div class="toolbar"><input id="file-input" type="file"><button id="upload-file" class="btn">Upload</button><button id="refresh-files" class="btn secondary">Refresh</button></div>
+        <div class="toolbar"><input id="file-input" type="file" accept=".txt,.csv,.json,.py,.ps1,.png,.jpg,.jpeg,.pdf,.zip"><button id="upload-file" class="btn">Upload</button><button id="refresh-files" class="btn secondary">Refresh</button></div>
         <p class="sandbox-note">Sandbox root: <code>sandbox_root/&lt;machine_id&gt;/&lt;job_id&gt;</code>. Path traversal is rejected by the agent.</p>
         <h3>Artifacts dispatched to this machine</h3>
         <div id="files-output" class="stack-list"></div>

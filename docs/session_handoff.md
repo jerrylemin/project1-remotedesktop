@@ -108,6 +108,7 @@ Unresolved risks:
 
 - Physical Windows lab validation remains pending for real input, mss screen capture performance, OpenCV webcam capture, and real power execution.
 - Large file dispatch currently emits a download URL field for files over 512 KB; signed download serving can be expanded later.
+- Follow-up fix after real-machine logs: UI now requires an active claim before dispatching relay commands, checks webcam consent before calling the API, surfaces upload validation details, and routes file dispatch through `/api/machines/{id}/file-dispatch`.
 
 Commit hash:
 

@@ -3,7 +3,10 @@ async function uploadArtifact(fileInput) {
   const form = new FormData();
   form.append("file", fileInput.files[0]);
   const res = await fetch("/api/files/upload", { method: "POST", body: form });
-  if (!res.ok) throw new Error("Upload failed");
+  if (!res.ok) {
+    const detail = (await res.json().catch(() => ({}))).detail;
+    throw new Error(detail || "Upload failed");
+  }
   return res.json();
 }
 

@@ -34,7 +34,12 @@ async function jsonFetch(url, options = {}) {
   return res.json();
 }
 
-async function apiCommand(url, options = {}) {
+function requireClaim(message = "Claim control before sending this command.") {
+  if (!currentSessionId) throw new Error(message);
+}
+
+async function apiCommand(url, options = {}, { requireControl = true } = {}) {
+  if (requireControl) requireClaim();
   const response = await jsonFetch(url, options);
   if (response.command) {
     await wsClient.connect({ control: true });
@@ -219,6 +224,7 @@ document.getElementById("capture-screen").addEventListener("click", async () => 
   await loadAudit();
 });
 document.getElementById("screen-fps").addEventListener("change", async event => {
+  requireClaim("Claim control before changing screen FPS.");
   await wsClient.connect({ control: true });
   wsClient.sendCommand({ action: "set_screen_fps", fps: Number(event.target.value) });
 });
@@ -247,20 +253,35 @@ document.addEventListener("keyup", event => {
 });
 
 document.getElementById("upload-file").addEventListener("click", async () => {
-  const artifact = await TelepcFiles.uploadArtifact(document.getElementById("file-input"));
-  await TelepcFiles.dispatchArtifact(artifact.artifact_id, machineId);
-  await loadFilesAndJobs();
-  await loadAudit();
+  try {
+    requireClaim("Claim control before dispatching files to the agent sandbox.");
+    const artifact = await TelepcFiles.uploadArtifact(document.getElementById("file-input"));
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/file-dispatch`, { method: "POST", body: JSON.stringify({ artifact_id: artifact.artifact_id }) });
+    await loadFilesAndJobs();
+    await loadAudit();
+  } catch (error) {
+    alert(error.message || error);
+  }
 });
 
 document.getElementById("webcam-start").addEventListener("click", async () => {
-  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/start`, { method: "POST", body: JSON.stringify({ consent: document.getElementById("webcam-consent").checked }) });
+  try {
+    if (!document.getElementById("webcam-consent").checked) throw new Error("Check webcam consent before starting the camera.");
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/start`, { method: "POST", body: JSON.stringify({ consent: true }) });
+  } catch (error) {
+    alert(error.message || error);
+  }
 });
 document.getElementById("webcam-stop").addEventListener("click", async () => {
-  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify({ consent: true }) });
+  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify({ consent: true }) }).catch(alert);
 });
 document.getElementById("webcam-snapshot").addEventListener("click", () => {
-  apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/snapshot`, { method: "POST", body: JSON.stringify({ consent: document.getElementById("webcam-consent").checked }) }).catch(alert);
+  try {
+    if (!document.getElementById("webcam-consent").checked) throw new Error("Check webcam consent before taking a snapshot.");
+    apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/snapshot`, { method: "POST", body: JSON.stringify({ consent: true }) }).catch(alert);
+  } catch (error) {
+    alert(error.message || error);
+  }
 });
 
 document.getElementById("keyboard-toggle").addEventListener("click", () => {
