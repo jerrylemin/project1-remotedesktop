@@ -14,6 +14,7 @@ from apps.api.services.file import list_sandbox_files, record_dispatch, store_up
 from shared.enums import Permission
 
 router = APIRouter(prefix="/api/files", tags=["files"])
+artifact_router = APIRouter(prefix="/api/artifacts", tags=["artifacts"])
 
 
 @router.post("/upload")
@@ -26,6 +27,15 @@ async def upload_file(
     await record_audit(db, event_type="file_uploaded_to_server", summary=f"Uploaded {artifact.filename}", actor_type="admin", actor_user_id=user.id, metadata={"filename": artifact.filename, "sha256": artifact.sha256})
     await db.commit()
     return {"artifact_id": artifact.id, "filename": artifact.filename, "size": artifact.size, "sha256": artifact.sha256}
+
+
+@artifact_router.post("/upload")
+async def upload_artifact_alias(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.FILES_UPLOAD)),
+) -> dict[str, object]:
+    return await upload_file(file, db, user)
 
 
 @router.post("/{artifact_id}/dispatch")

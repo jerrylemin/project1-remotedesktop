@@ -25,6 +25,7 @@ def create_app() -> FastAPI:
     app.include_router(sessions.router)
     app.include_router(audit.router)
     app.include_router(files.router)
+    app.include_router(files.artifact_router)
     app.include_router(jobs.router)
     app.include_router(ws_auth.router)
     app.include_router(internal.router)

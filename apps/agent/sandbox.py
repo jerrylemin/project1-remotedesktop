@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 
-ALLOWED_EXTENSIONS = {".py", ".ps1", ".sh", ".cmd", ".txt", ".csv", ".json"}
+ALLOWED_EXTENSIONS = {".txt", ".csv", ".json", ".py", ".ps1", ".png", ".jpg", ".jpeg", ".pdf", ".zip"}
 
 
 class SandboxError(ValueError):
@@ -16,6 +16,8 @@ def ensure_safe_relative_path(relative_path: str) -> Path:
         raise SandboxError("dot segments are not allowed")
     path = Path(relative_path)
     if path.is_absolute():
+        raise SandboxError("absolute paths are not allowed")
+    if relative_path.startswith(("\\\\", "C:", "c:")):
         raise SandboxError("absolute paths are not allowed")
     if any(part in {"", ".", ".."} for part in path.parts):
         raise SandboxError("dot segments are not allowed")

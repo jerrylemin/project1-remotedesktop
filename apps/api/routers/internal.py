@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,7 @@ from apps.api.db import get_db
 from apps.api.deps_internal import require_internal_secret
 from apps.api.services.audit import record_audit
 from apps.api.services.machine import upsert_machine_status
+from apps.api.services.session import get_active_control_session, release_active_control_session
 
 router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal_secret)])
 
@@ -30,6 +31,12 @@ class MachineStatusIn(BaseModel):
     hostname: str | None = None
     os: str | None = None
     username: str | None = None
+
+
+class InternalControlSessionOut(BaseModel):
+    id: str
+    machine_id: str
+    controller_user_id: int
 
 
 @router.post("/audit")
@@ -60,3 +67,33 @@ async def internal_machine_status(body: MachineStatusIn, db: AsyncSession = Depe
     )
     await db.commit()
     return {"status": "ok"}
+
+
+@router.get("/control-session/{machine_id}", response_model=InternalControlSessionOut)
+async def internal_control_session(machine_id: str, db: AsyncSession = Depends(get_db)) -> InternalControlSessionOut:
+    session = await get_active_control_session(db, machine_id)
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no active control session")
+    return InternalControlSessionOut(id=session.id, machine_id=session.machine_id, controller_user_id=session.controller_user_id)
+
+
+@router.delete("/control-session/{machine_id}")
+async def internal_release_control_session(
+    machine_id: str,
+    controller_user_id: int | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, str | None]:
+    session = await release_active_control_session(db, machine_id, controller_user_id)
+    if session is None:
+        return {"status": "not_found", "session_id": None}
+    await record_audit(
+        db,
+        event_type="control_released",
+        summary="Control released by relay disconnect",
+        actor_type="system",
+        machine_id=machine_id,
+        session_id=session.id,
+        actor_user_id=session.controller_user_id,
+    )
+    await db.commit()
+    return {"status": "released", "session_id": session.id}

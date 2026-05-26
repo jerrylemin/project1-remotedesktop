@@ -47,6 +47,10 @@ async def record_dispatch(db: AsyncSession, artifact_id: str, machine_id: str, j
     return item
 
 
+async def get_artifact(db: AsyncSession, artifact_id: str) -> Artifact | None:
+    return await db.scalar(select(Artifact).where(Artifact.id == artifact_id))
+
+
 async def list_sandbox_files(db: AsyncSession, machine_id: str) -> list[tuple[SandboxFile, Artifact]]:
     result = await db.execute(
         select(SandboxFile, Artifact)

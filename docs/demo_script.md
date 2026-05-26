@@ -77,3 +77,19 @@ Target length: 5 to 7 minutes.
 5. Open Audit Logs.
 6. Filter or refresh logs and show only events for the current `machine_id`.
 7. End by showing README test commands and latest result: `py -3.12 -m pytest -q`.
+## Fake Demo Recording Script (Real-Machine Pass)
+
+1. Run `py -3.12 main.py`.
+2. Log in at `/admin/login`.
+3. Open `/admin/machines/LAB-PC-01`.
+4. Claim control, list processes/applications, capture screen, start live screen, upload a small `.txt`, dispatch it, run a Python sandbox job, check webcam consent, and request demo-safe restart.
+5. Open the audit panel and show machine-scoped logs for the same machine.
+
+## Real Machine Demo Recording Script
+
+1. On the server, run `py -3.12 scripts/check_server_network.py`, then `powershell -ExecutionPolicy Bypass -File scripts/start_server_windows.ps1`.
+2. On the test machine, install optional deps and run `py -3.12 client.py --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --mode real`.
+3. Confirm the visible agent banner is present on the test machine.
+4. In the browser, claim control before sending actions.
+5. Validate psutil process/app data, screen capture/live frames, sandbox file put/get, webcam consent/snapshot, and demo-safe power.
+6. Only set `TELEPC_ENABLE_REAL_INPUT=true` for the short input segment, then unset it after recording.

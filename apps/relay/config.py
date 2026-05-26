@@ -11,8 +11,8 @@ class RelaySettings(BaseSettings):
     api_url: str = "http://localhost:8000"
     secret_key: str = "telepc-dev-secret"
     internal_api_secret: str = "telepc-internal-dev-secret-change-me"
-    heartbeat_timeout_seconds: int = 15
-    offline_timeout_seconds: int = 45
+    heartbeat_timeout_seconds: int = 30
+    offline_timeout_seconds: int = 60
     allowed_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
 
     @property

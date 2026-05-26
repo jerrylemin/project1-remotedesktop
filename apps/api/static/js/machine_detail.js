@@ -3,12 +3,16 @@ const protectedProcesses = new Set(["lsass.exe", "winlogon.exe", "csrss.exe", "s
 let currentSessionId = null;
 let lastFrameAt = 0;
 let keyboardRunning = false;
+let lastFrameMeta = { width: 640, height: 360 };
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
 const fmtDate = value => value ? new Date(value).toLocaleString() : "never";
 
 const wsClient = new TelepcWsClient(machineId, {
-  onFrame: jpeg => {
+  onFrame: frame => {
+    const jpeg = typeof frame === "string" ? frame : (frame.data || frame.jpeg_b64);
+    if (!jpeg) return;
+    if (typeof frame === "object") lastFrameMeta = { width: frame.width || 640, height: frame.height || 360 };
     const src = `data:image/jpeg;base64,${jpeg}`;
     document.getElementById("remote-screen").src = src;
     document.getElementById("download-screen").href = src;
@@ -76,7 +80,11 @@ function handleWsResult(msg) {
   const result = payload.result || payload;
   if (result.processes) renderProcesses(result.processes);
   if (result.applications) renderApplications(result.applications);
-  if (result.webcam) {
+    if (result.type === "webcam_frame" || result.webcam_frame) {
+      const frame = result.webcam_frame || result;
+      document.getElementById("webcam-preview").innerHTML = `<img alt="Webcam frame" src="data:image/jpeg;base64,${esc(frame.data || frame.jpeg_b64)}">`;
+    }
+    if (result.webcam) {
     document.getElementById("webcam-status").textContent = result.webcam;
     document.getElementById("webcam-preview").textContent = result.webcam === "started" ? "Webcam active with consent" : "Camera preview starts only after consent.";
   }
@@ -210,6 +218,33 @@ document.getElementById("capture-screen").addEventListener("click", async () => 
   await wsClient.connect({ control: false });
   await loadAudit();
 });
+document.getElementById("screen-fps").addEventListener("change", async event => {
+  await wsClient.connect({ control: true });
+  wsClient.sendCommand({ action: "set_screen_fps", fps: Number(event.target.value) });
+});
+
+document.getElementById("full-control-toggle").addEventListener("change", event => {
+  document.getElementById("full-control-label").textContent = event.target.checked ? "Full Control ON - Requires active claim" : "Full Control OFF";
+});
+
+function sendInput(eventName, event) {
+  if (!document.getElementById("full-control-toggle").checked || !currentSessionId) return;
+  const image = document.getElementById("remote-screen");
+  const rect = image.getBoundingClientRect();
+  const x = Math.round((event.offsetX ?? (event.clientX - rect.left)) * lastFrameMeta.width / Math.max(1, rect.width));
+  const y = Math.round((event.offsetY ?? (event.clientY - rect.top)) * lastFrameMeta.height / Math.max(1, rect.height));
+  wsClient.connect({ control: true }).then(() => wsClient.send("input_event", { action: "input_event", event: eventName, x, y, delta_y: event.deltaY })).catch(alert);
+}
+
+["mousemove", "mousedown", "mouseup", "click", "dblclick", "wheel"].forEach(name => {
+  document.getElementById("remote-screen").addEventListener(name, event => sendInput(name.replace("mouse", "mouse_"), event));
+});
+document.addEventListener("keydown", event => {
+  if (document.getElementById("full-control-toggle").checked && currentSessionId) wsClient.connect({ control: true }).then(() => wsClient.send("input_event", { action: "input_event", event: "key_down", code: event.code })).catch(alert);
+});
+document.addEventListener("keyup", event => {
+  if (document.getElementById("full-control-toggle").checked && currentSessionId) wsClient.connect({ control: true }).then(() => wsClient.send("input_event", { action: "input_event", event: "key_up", code: event.code })).catch(alert);
+});
 
 document.getElementById("upload-file").addEventListener("click", async () => {
   const artifact = await TelepcFiles.uploadArtifact(document.getElementById("file-input"));
@@ -225,7 +260,7 @@ document.getElementById("webcam-stop").addEventListener("click", async () => {
   await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify({ consent: true }) });
 });
 document.getElementById("webcam-snapshot").addEventListener("click", () => {
-  document.getElementById("webcam-preview").textContent = `Snapshot requested at ${new Date().toLocaleTimeString()}`;
+  apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/snapshot`, { method: "POST", body: JSON.stringify({ consent: document.getElementById("webcam-consent").checked }) }).catch(alert);
 });
 
 document.getElementById("keyboard-toggle").addEventListener("click", () => {

@@ -71,6 +71,12 @@ class RelayRegistry:
     def is_controller(self, websocket: WebSocket, machine_id: str) -> bool:
         return self.controllers.get(machine_id) is websocket
 
+    def controlled_machines_for(self, websocket: WebSocket) -> list[tuple[str, str]]:
+        conn = self.admins.get(websocket)
+        if conn is None:
+            return []
+        return [(machine_id, conn.user_id) for machine_id in conn.controlled]
+
     def agent_for(self, machine_id: str) -> WebSocket | None:
         return self.agents.get(machine_id)
 

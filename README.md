@@ -184,3 +184,54 @@ py -3.12 -m pytest -q
 ```
 
 Latest local result with Python 3.12: `42 passed`.
+## Real Machine Completion Pass
+
+### Quick Start (Fake)
+
+```powershell
+py -3.12 -m pip install -r requirements.txt
+py -3.12 scripts/create_admin.py
+py -3.12 main.py
+```
+
+Open `http://localhost:8000/admin/login`, sign in with the seeded admin, then use the fake lab agents for screen frames, process/app lists, file sandbox, webcam consent flow, and demo-safe power actions.
+
+### Real Machine Setup
+
+Server machine:
+
+```powershell
+py -3.12 scripts/check_server_network.py
+powershell -ExecutionPolicy Bypass -File scripts/start_server_windows.ps1
+```
+
+Test machine:
+
+```powershell
+py -3.12 -m pip install -r requirements.txt
+py -3.12 -m pip install "mss>=9.0" "psutil>=6.0" "opencv-python>=4.10" "pynput>=1.7" "pyautogui>=0.9"
+py -3.12 client.py --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --mode real
+```
+
+LAN firewall: open inbound TCP `8000` and `8001` on the server only. Test machines need outbound access only. Verify from a test machine with:
+
+```powershell
+Test-NetConnection <SERVER_IP> -Port 8000
+Test-NetConnection <SERVER_IP> -Port 8001
+```
+
+### Optional Real-Agent Dependencies
+
+| Capability | Package | Safe default |
+| --- | --- | --- |
+| Screen capture | `mss` or `Pillow` ImageGrab | Fake JPEG frames |
+| Processes/applications | `psutil` | Fake grouped rows |
+| Webcam | `opencv-python` | Consent-gated fake frame/status |
+| Real input | `pyautogui` | Disabled unless `TELEPC_ENABLE_REAL_INPUT=true` |
+| Real power | Windows built-ins | Demo-safe unless `TELEPC_ENABLE_REAL_POWER=true` |
+
+### Known Limitations
+
+- Physical Windows validation is still required for real screen FPS, real input, webcam, and power commands.
+- Real input and real power are intentionally opt-in environment-gated features.
+- File dispatch supports inline bytes up to 512 KB; larger files are prepared for signed download URL handoff.

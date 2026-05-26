@@ -49,8 +49,13 @@ def test_observer_cannot_send_input(monkeypatch) -> None:
     async def noop_status(*args, **kwargs):
         return None
 
+    async def fake_active(machine_id: str):
+        return {"id": "s1", "machine_id": machine_id, "controller_user_id": 1}
+
     monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
     monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
+    monkeypatch.setattr("apps.relay.api_client.active_control_session", fake_active)
+    monkeypatch.setattr("apps.relay.router.active_control_session", fake_active)
     with TestClient(app) as client:
         with client.websocket_connect("/ws/agent") as agent, client.websocket_connect("/ws/admin") as admin:
             agent.send_json(make_envelope("auth", machine_id="m1", payload={"machine_id": "m1", "machine_secret": "secret"}))
@@ -70,8 +75,12 @@ def test_controller_can_send_command(monkeypatch) -> None:
     async def noop_status(*args, **kwargs):
         return None
 
+    async def fake_active(machine_id: str):
+        return {"id": "s1", "machine_id": machine_id, "controller_user_id": 1}
+
     monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
     monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
+    monkeypatch.setattr("apps.relay.router.active_control_session", fake_active)
     with TestClient(app) as client:
         with client.websocket_connect("/ws/agent") as agent, client.websocket_connect("/ws/admin") as admin:
             agent.send_json(make_envelope("auth", machine_id="m1", payload={"machine_id": "m1", "machine_secret": "secret"}))
@@ -83,4 +92,3 @@ def test_controller_can_send_command(monkeypatch) -> None:
             admin.send_json(make_envelope("command", machine_id="m1", payload={"action": "list_processes"}))
             forwarded = agent.receive_json()
             assert forwarded["type"] == "command"
-

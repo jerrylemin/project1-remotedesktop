@@ -1,9 +1,7 @@
 from __future__ import annotations
 
+from apps.agent.input_provider import handle_input_event as safe_handle_input_event
+
 
 def handle_input_event(payload: dict) -> dict:
-    event_type = payload.get("event")
-    if event_type == "keyboard":
-        return {"handled": True, "metadata": {"event": "keyboard", "keystroke_content": "[not captured]"}}
-    return {"handled": True, "metadata": {"event": event_type or "unknown"}}
-
+    return safe_handle_input_event(payload)

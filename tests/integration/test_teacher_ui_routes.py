@@ -5,7 +5,8 @@ from apps.api.models import Machine
 from apps.api.services.audit import record_audit
 
 
-async def test_admin_pages_render(api_client) -> None:
+async def test_admin_pages_render(api_client, admin_token: str) -> None:
+    api_client.cookies.set("telepc_session", admin_token)
     for path in ["/admin/dashboard", "/admin/machines", "/admin/machines/m1", "/admin/audit"]:
         response = await api_client.get(path)
         assert response.status_code == 200
@@ -65,7 +66,7 @@ async def test_power_requires_confirm_and_reason(api_client, admin_token: str) -
     missing_reason = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "restart", "confirm": True, "reason": ""})
     assert missing_reason.status_code == 400
 
-    accepted = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "restart", "confirm": True, "reason": "demo"})
+    accepted = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "restart", "confirm": True, "reason": "demo restart"})
     assert accepted.status_code == 200
     assert accepted.json()["command"]["power_action"] == "restart"
 

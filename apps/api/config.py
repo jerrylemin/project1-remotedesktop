@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     secret_key: str = "telepc-dev-secret-change-me-32-bytes-minimum"
     internal_api_secret: str = "telepc-internal-dev-secret-change-me"
     access_token_expire_minutes: int = 480
-    ws_ticket_ttl_seconds: int = 60
+    ws_ticket_ttl_seconds: int = 30
     artifact_root: Path = Path("./artifacts")
-    max_upload_size: int = 5 * 1024 * 1024
-    allowed_upload_ext: str = ".py,.ps1,.sh,.cmd,.txt,.csv,.json"
+    max_upload_size: int = 10 * 1024 * 1024
+    allowed_upload_ext: str = ".txt,.csv,.json,.py,.ps1,.png,.jpg,.jpeg,.pdf,.zip"
     app_allowlist: str = "notepad,calc,python,pwsh,powershell,cmd,bash"
     relay_url: str = "ws://localhost:8001"
     api_url: str = "http://localhost:8000"

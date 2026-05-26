@@ -37,6 +37,19 @@
 ## Verification
 
 - `py -3.12 -m compileall .` passed.
-- `py -3.12 -m pytest -q` passed: 42 tests.
+- `py -3.12 -m pytest -q` passed: 72 tests after the real-machine completion pass.
 - `main.py --no-agents` plus `client.py --mode fake` smoke test passed with the client visible online in `/api/machines`.
 - Default `python` is 3.10 on this workstation; use Python 3.11+ for this repo.
+
+## Real-Machine Completion Pass (2026-05-26)
+
+- Admin pages now require the HttpOnly session cookie; anonymous users redirect to `/admin/login`, and role denials render `403.html`.
+- Relay command forwarding now checks the API's active control session before protected actions and releases the DB lock when a controlling admin WebSocket disconnects.
+- Screen frames now use the requested frame schema with `data`, dimensions, `frame_no`, and `created_at`; fake mode remains deterministic.
+- Real input is implemented behind `TELEPC_ENABLE_REAL_INPUT=true`; default mode records event summaries without key contents.
+- Application/process providers use psutil when available, with allowlisted app start and protected process guards.
+- File put/get helpers verify SHA256 and enforce sandbox path containment.
+- Sandbox jobs enforce allowlisted runners, timeout reporting, and 64 KB output truncation.
+- Webcam snapshot/start remains consent-gated; fake frames are available for CI.
+- Power commands are demo-safe unless `TELEPC_ENABLE_REAL_POWER=true`.
+- LAN helper scripts and `docs/REAL_MACHINE_TEST_CHECKLIST.md` were added.

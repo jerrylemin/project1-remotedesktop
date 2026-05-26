@@ -86,3 +86,29 @@ py -3.12 -m pytest -q
 - Validate real-agent behavior on a physical Windows lab machine with optional dependencies installed.
 - Harden Alembic async/sync migration execution if migrations are used beyond metadata create.
 - Consider a server-side relay command bridge if future UI actions must be initiated without browser WebSocket control.
+
+## Real-Machine Completion Pass Handoff (2026-05-26)
+
+Current state:
+
+- Admin page auth guard, role 403 page, relay/API controller-lock sync, fake/real provider upgrades, file/job/webcam/power/input guards, LAN helper scripts, and expanded tests are implemented.
+- `py -3.12 -m compileall .` passed.
+- `py -3.12 -m pytest -q` passed: 72 tests.
+
+Commands to run:
+
+```powershell
+py -3.12 -m compileall .
+py -3.12 -m pytest -q
+py -3.12 scripts/check_server_network.py
+powershell -ExecutionPolicy Bypass -File scripts/start_server_windows.ps1 -FakeAgents
+```
+
+Unresolved risks:
+
+- Physical Windows lab validation remains pending for real input, mss screen capture performance, OpenCV webcam capture, and real power execution.
+- Large file dispatch currently emits a download URL field for files over 512 KB; signed download serving can be expanded later.
+
+Commit hash:
+
+- Final commit is the latest `main` commit with message `feat: complete real machine TelePC control (screen/input/files/webcam/power/audit)`. Use `git log --oneline -1` for the exact hash after commit creation.

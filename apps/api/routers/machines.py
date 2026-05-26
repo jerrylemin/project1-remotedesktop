@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +16,8 @@ from apps.api.schemas import (
     AgentEnrollOut,
     ApplicationActionIn,
     EnrollTokenOut,
+    FileDispatchIn,
+    FileGetIn,
     JobHistoryOut,
     MachineCommandOut,
     MachineOut,
@@ -22,7 +28,7 @@ from apps.api.schemas import (
     WebcamActionIn,
 )
 from apps.api.services.audit import record_audit
-from apps.api.services.file import list_sandbox_files
+from apps.api.services.file import get_artifact, list_sandbox_files, record_dispatch
 from apps.api.routers.jobs import job_history_out
 from apps.api.services.job import list_jobs_for_machine
 from apps.api.services.machine import create_enroll_token, enroll_machine, get_machine, list_machines
@@ -31,7 +37,8 @@ from shared.enums import Permission
 router = APIRouter(prefix="/api", tags=["machines"])
 
 PROTECTED_PROCESS_NAMES = {"lsass.exe", "winlogon.exe", "csrss.exe", "services.exe", "system", "registry"}
-POWER_ACTIONS = {"lock", "restart", "shutdown", "sleep"}
+POWER_ACTIONS = {"lock", "restart", "shutdown", "cancel"}
+INLINE_FILE_LIMIT = 512 * 1024
 
 
 async def active_controller_user_id(db: AsyncSession, machine_id: str) -> int | None:
@@ -198,6 +205,18 @@ async def webcam_stop(machine_id: str, body: WebcamActionIn, db: AsyncSession = 
     return command_response("webcam", start=False, consent=body.consent)
 
 
+@router.post("/machines/{machine_id}/webcam/snapshot", response_model=MachineCommandOut)
+async def webcam_snapshot(machine_id: str, body: WebcamActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    if not body.consent:
+        await record_audit(db, event_type="webcam_denied", summary="Webcam snapshot denied without consent", actor_type="admin", actor_user_id=user.id, machine_id=machine_id)
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="webcam requires consent")
+    await record_audit(db, event_type="webcam_snapshot", summary="Webcam snapshot requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"consent": body.consent})
+    await db.commit()
+    return command_response("webcam_snapshot", consent=True)
+
+
 @router.post("/machines/{machine_id}/power", response_model=MachineCommandOut)
 async def power_action(
     machine_id: str,
@@ -209,14 +228,56 @@ async def power_action(
     action = body.action.lower()
     if action not in POWER_ACTIONS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="unsupported power action")
-    if not body.confirm or not body.reason.strip():
+    if action in {"restart", "shutdown"} and len(body.reason.strip()) < 5:
         await record_audit(db, event_type="acl_denied", summary=f"Power {action} denied without confirmation or reason", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"action": action})
         await db.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="power action requires confirm and reason")
-    event_type = f"{action}_requested" if action in {"restart", "shutdown"} else "power_requested"
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="power action requires reason of at least 5 characters")
+    if action in {"restart", "shutdown"} and not body.confirm:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="power action requires confirm")
+    event_type = f"{action}_requested" if action in {"restart", "shutdown"} else "power_cancel_requested" if action == "cancel" else "power_requested"
     await record_audit(db, event_type=event_type, summary=f"Power action requested: {action}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"action": action, "reason": body.reason})
     await db.commit()
     return command_response("power", power_action=action, confirm=True, reason=body.reason)
+
+
+@router.post("/machines/{machine_id}/file-dispatch", response_model=MachineCommandOut)
+async def file_dispatch(
+    machine_id: str,
+    body: FileDispatchIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.FILES_UPLOAD)),
+) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    artifact = await get_artifact(db, body.artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="artifact not found")
+    job_id = str(uuid4())
+    filename = Path(artifact.filename).name
+    await record_dispatch(db, artifact.id, machine_id, job_id, f"{machine_id}/{job_id}/{filename}")
+    payload = {"filename": filename, "sha256": artifact.sha256, "size": artifact.size, "job_id": job_id}
+    data = Path(artifact.stored_path).read_bytes()
+    if len(data) <= INLINE_FILE_LIMIT:
+        payload["content_base64"] = base64.b64encode(data).decode()
+    else:
+        payload["download_url"] = f"/api/artifacts/{artifact.id}/download"
+    await record_audit(db, event_type="file_dispatched_to_agent", summary="File dispatched to agent sandbox", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"artifact_id": artifact.id, "job_id": job_id})
+    await db.commit()
+    return command_response("file_put", **payload)
+
+
+@router.post("/machines/{machine_id}/file-get", response_model=MachineCommandOut)
+async def file_get(
+    machine_id: str,
+    body: FileGetIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.FILES_DOWNLOAD)),
+) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    if body.path.startswith(("../", "..\\", "\\\\", "/", "C:", "c:")):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="path traversal rejected")
+    await record_audit(db, event_type="file_downloaded_from_agent", summary="Sandbox file download requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"path": body.path})
+    await db.commit()
+    return command_response("file_get", path=body.path)
 
 
 @router.get("/machines/{machine_id}/sandbox/files", response_model=list[SandboxFileOut])

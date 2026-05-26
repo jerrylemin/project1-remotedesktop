@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from apps.agent.files import get_file, put_file
+from apps.agent.power_provider import run_power_action
 from apps.agent.providers import AgentProviders, build_providers
 
 PROTECTED_PROCESS_NAMES = {"lsass.exe", "winlogon.exe", "csrss.exe", "services.exe", "system", "registry"}
@@ -26,12 +28,38 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
         return providers.processes.stop_process(int(command["pid"]), bool(command.get("confirm")))
     if action == "input_event":
         return providers.input_controller.handle_input(command)
+    if action == "capture_screen":
+        return providers.screen.capture_frame(machine_id, command.get("session_id"))
+    if action in {"start_live_screen", "screen_start"}:
+        return {"screen": "started", "fps": int(command.get("fps") or 5)}
+    if action in {"stop_live_screen", "screen_stop"}:
+        return {"screen": "stopped"}
+    if action == "set_screen_fps":
+        fps = int(command.get("fps") or 5)
+        if fps not in {1, 5, 10}:
+            raise ValueError("unsupported screen fps")
+        return {"screen_fps": fps}
+    if action == "file_put":
+        return put_file(
+            sandbox_root,
+            machine_id,
+            str(command["job_id"]),
+            str(command["filename"]),
+            str(command["content_base64"]),
+            str(command.get("sha256") or "") or None,
+        )
+    if action == "file_get":
+        return get_file(sandbox_root, machine_id, str(command["path"]))
     if action == "webcam":
         return providers.webcam.set_webcam(bool(command.get("start")), bool(command.get("consent")))
+    if action == "webcam_snapshot":
+        if not command.get("consent"):
+            raise PermissionError("webcam_consent_required")
+        return {"webcam_frame": providers.webcam.snapshot(machine_id)}
     if action == "run_job":
         return await providers.sandbox.run(machine_id, sandbox_root, command)
     if action == "power":
         if not command.get("confirm") or not str(command.get("reason") or "").strip():
             raise PermissionError("power action requires confirmation and reason")
-        return {"action": command.get("power_action"), "accepted": True, "demo_safe": True, "reason": command.get("reason")}
+        return run_power_action(str(command.get("power_action")), str(command.get("reason") or ""))
     raise ValueError(f"unsupported command: {action}")

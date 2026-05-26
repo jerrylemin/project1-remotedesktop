@@ -4,13 +4,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from apps.agent.app_manager import list_applications, start_application
+from apps.agent.app_manager import list_applications, start_application, stop_application
 from apps.agent.input_demo import handle_input_event
-from apps.agent.job_runner import run_job
+from apps.agent.job_runner import command_from_schema, run_job
 from apps.agent.process_manager import list_processes, stop_process
 from apps.agent.sandbox import job_sandbox
-from apps.agent.screen import fake_jpeg_frame, real_jpeg_frame
-from apps.agent.webcam import webcam_status
+from apps.agent.screen import fake_jpeg_frame, frame_payload, real_jpeg_frame
+from apps.agent.webcam import cv2_snapshot, fake_webcam_frame, webcam_status
 
 
 class ProviderError(RuntimeError):
@@ -21,6 +21,9 @@ class ScreenCaptureProvider(ABC):
     @abstractmethod
     def capture_jpeg_b64(self) -> str:
         raise NotImplementedError
+
+    def capture_frame(self, machine_id: str, session_id: str | None = None, frame_no: int = 1) -> dict[str, Any]:
+        return frame_payload(self.capture_jpeg_b64(), machine_id=machine_id, session_id=session_id, frame_no=frame_no)
 
 
 class ProcessProvider(ABC):
@@ -50,6 +53,10 @@ class AppLauncher(ABC):
 class WebcamProvider(ABC):
     @abstractmethod
     def set_webcam(self, start: bool, consent: bool) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def snapshot(self, machine_id: str) -> dict[str, Any]:
         raise NotImplementedError
 
 
@@ -122,20 +129,7 @@ class RealAppLauncher(AppLauncher):
         return start_application(command)
 
     def stop_application(self, name: str, confirm: bool) -> dict[str, Any]:
-        if not confirm:
-            raise ProviderError("application stop requires confirmation")
-        try:
-            import psutil
-        except ImportError as exc:
-            raise ProviderError("psutil is not installed; application stop unavailable") from exc
-        stopped = 0
-        target = name.lower().removesuffix(".exe")
-        for proc in psutil.process_iter(["pid", "name"]):
-            proc_name = str(proc.info.get("name") or "").lower().removesuffix(".exe")
-            if proc_name == target:
-                proc.terminate()
-                stopped += 1
-        return {"name": name, "stopped": stopped}
+        return stop_application(name, confirm)
 
 
 class FakeWebcamProvider(WebcamProvider):
@@ -143,6 +137,9 @@ class FakeWebcamProvider(WebcamProvider):
         if start and not consent:
             raise ProviderError("webcam requires explicit consent")
         return {"webcam": "started" if start else "stopped", "fake": True}
+
+    def snapshot(self, machine_id: str) -> dict[str, Any]:
+        return fake_webcam_frame(machine_id)
 
 
 class RealWebcamProvider(WebcamProvider):
@@ -152,6 +149,12 @@ class RealWebcamProvider(WebcamProvider):
         except ImportError as exc:
             raise ProviderError("opencv-python is not installed; webcam unavailable") from exc
         return webcam_status(start, consent)
+
+    def snapshot(self, machine_id: str) -> dict[str, Any]:
+        try:
+            return cv2_snapshot(machine_id)
+        except RuntimeError as exc:
+            raise ProviderError(str(exc)) from exc
 
 
 class DemoInputController(InputController):
@@ -163,7 +166,7 @@ class LocalSandboxRunner(SandboxRunner):
     async def run(self, machine_id: str, sandbox_root: Path, payload: dict[str, Any]) -> dict[str, Any]:
         job_id = payload["job_id"]
         cwd = job_sandbox(sandbox_root, machine_id, job_id)
-        return await run_job(payload["command"], cwd, payload.get("timeout"))
+        return await run_job(command_from_schema(payload), cwd, payload.get("timeout"))
 
 
 class AgentProviders:

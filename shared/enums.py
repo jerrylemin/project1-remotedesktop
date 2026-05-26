@@ -89,10 +89,13 @@ AUDIT_EVENT_TYPES = {
     "sandbox_job_finished",
     "webcam_started",
     "webcam_stopped",
+    "webcam_snapshot",
+    "webcam_denied",
+    "input_event_sent",
     "restart_requested",
     "shutdown_requested",
+    "power_cancel_requested",
     "auth_failed",
     "acl_denied",
     "command_failed",
 }
-

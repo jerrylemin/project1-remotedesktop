@@ -105,6 +105,14 @@ class PowerActionIn(BaseModel):
     reason: str
 
 
+class FileDispatchIn(BaseModel):
+    artifact_id: str
+
+
+class FileGetIn(BaseModel):
+    path: str
+
+
 class SandboxFileOut(BaseModel):
     artifact_id: str
     filename: str

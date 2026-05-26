@@ -5,6 +5,14 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+APP_ALLOWLIST = {
+    "notepad": "notepad.exe",
+    "calc": "calc.exe",
+    "mspaint": "mspaint.exe",
+    "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "vscode": r"C:\Users\{user}\AppData\Local\Programs\Microsoft VS Code\Code.exe",
+}
+
 
 class AgentSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -17,8 +25,10 @@ class AgentSettings(BaseSettings):
     require_consent: bool = True
     agent_mode: str = "fake"
     job_timeout_seconds: int = 30
-    runner_allowlist: str = "python,powershell,pwsh,cmd,bash"
-    app_allowlist: str = "notepad,calc,python,pwsh,powershell,cmd,bash"
+    runner_allowlist: str = "python,powershell,pwsh,cmd"
+    app_allowlist: str = ",".join(APP_ALLOWLIST)
+    enable_real_input: bool = False
+    enable_real_power: bool = False
 
     @property
     def runners(self) -> set[str]:
@@ -34,4 +44,3 @@ def get_agent_settings() -> AgentSettings:
     settings = AgentSettings()
     settings.sandbox_root.mkdir(parents=True, exist_ok=True)
     return settings
-

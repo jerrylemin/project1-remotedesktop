@@ -76,6 +76,8 @@
           <button id="capture-screen" class="btn">Capture</button>
           <button id="start-screen" class="btn secondary">Start Live</button>
           <button id="stop-screen" class="btn ghost">Stop</button>
+          <select id="screen-fps" class="control-select"><option value="1">1 FPS</option><option value="5" selected>5 FPS</option><option value="10">10 FPS</option></select>
+          <label class="check-line"><input id="full-control-toggle" type="checkbox"> <span id="full-control-label">Full Control OFF</span></label>
           <a id="download-screen" class="btn ghost" href="#" download="telepc-screen.jpg">Download Image</a>
           <span id="fps-label" class="fps-label">0 fps</span>
         </div>
@@ -113,7 +115,7 @@
         <div class="panel-head"><h2>Power</h2><span>Danger zone</span></div>
         <div class="power-grid">
           <button class="power-card" data-power="lock"><strong>Lock</strong><small>Lock screen</small></button>
-          <button class="power-card" data-power="sleep"><strong>Sleep</strong><small>Suspend machine</small></button>
+          <button class="power-card" data-power="cancel"><strong>Cancel</strong><small>Cancel scheduled power action</small></button>
           <button class="power-card warning" data-power="restart"><strong>Restart</strong><small>Requires reason</small></button>
           <button class="power-card danger" data-power="shutdown"><strong>Shutdown</strong><small>Requires reason</small></button>
         </div>

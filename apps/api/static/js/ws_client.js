@@ -52,7 +52,7 @@ class TelepcWsClient {
       this.role = msg.payload.role;
       this.onStatus(this.role === "controller" ? "online" : "observer");
     }
-    if (msg.type === "frame" && msg.payload?.jpeg_b64) this.onFrame(msg.payload.jpeg_b64);
+    if (msg.type === "frame" && (msg.payload?.jpeg_b64 || msg.payload?.data)) this.onFrame(msg.payload);
     if (msg.type === "command_result" || msg.type === "error" || msg.type === "job_status") this.onResult(msg);
   }
 

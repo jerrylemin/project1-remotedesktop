@@ -29,3 +29,9 @@
 ## Notes
 
 The prototype HTML was not copied as one static page. It was split into Jinja layout, partials, CSS, and JavaScript, with live data provided by FastAPI endpoints, the relay WebSocket, fake agents, audit logs, file sandbox, and job history.
+## Real-Machine Pass UI Updates (2026-05-26)
+
+- Machine detail screen panel now has a 1/5/10 FPS selector and a default-off Full Control toggle.
+- Mouse and keyboard forwarding is scoped to the screen image and requires an active control claim plus relay/API lock validation.
+- Webcam snapshot is wired through the command flow and remains disabled by consent when unchecked.
+- Power panel uses cancel/restart/shutdown/lock actions and renders actual command result JSON in the result area.
