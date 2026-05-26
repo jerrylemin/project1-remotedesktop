@@ -85,13 +85,15 @@ function handleWsResult(msg) {
   const result = payload.result || payload;
   if (result.processes) renderProcesses(result.processes);
   if (result.applications) renderApplications(result.applications);
-    if (result.type === "webcam_frame" || result.webcam_frame) {
-      const frame = result.webcam_frame || result;
-      document.getElementById("webcam-preview").innerHTML = `<img alt="Webcam frame" src="data:image/jpeg;base64,${esc(frame.data || frame.jpeg_b64)}">`;
-    }
-    if (result.webcam) {
+  const webcamFrame = result.webcam_frame || (result.type === "webcam_frame" ? result : null);
+  if (webcamFrame) {
+    document.getElementById("webcam-preview").innerHTML = `<img alt="Webcam frame" src="data:image/jpeg;base64,${esc(webcamFrame.data || webcamFrame.jpeg_b64)}">`;
+  }
+  if (result.webcam) {
     document.getElementById("webcam-status").textContent = result.webcam;
-    document.getElementById("webcam-preview").textContent = result.webcam === "started" ? "Webcam active with consent" : "Camera preview starts only after consent.";
+    if (!webcamFrame) {
+      document.getElementById("webcam-preview").textContent = result.webcam === "started" ? "Webcam active with consent" : "Camera preview starts only after consent.";
+    }
   }
   if (result.action && result.demo_safe) document.getElementById("power-result").textContent = `${result.action} accepted for demo-safe agent flow`;
   loadAudit().catch(() => {});

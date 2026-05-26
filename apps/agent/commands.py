@@ -51,7 +51,11 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
     if action == "file_get":
         return get_file(sandbox_root, machine_id, str(command["path"]))
     if action == "webcam":
-        return providers.webcam.set_webcam(bool(command.get("start")), bool(command.get("consent")))
+        start = bool(command.get("start"))
+        result = providers.webcam.set_webcam(start, bool(command.get("consent")))
+        if start:
+            result["webcam_frame"] = providers.webcam.snapshot(machine_id)
+        return result
     if action == "webcam_snapshot":
         if not command.get("consent"):
             raise PermissionError("webcam_consent_required")

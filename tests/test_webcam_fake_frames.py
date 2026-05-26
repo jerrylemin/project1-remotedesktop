@@ -18,3 +18,11 @@ def test_fake_webcam_frame_schema() -> None:
 async def test_webcam_start_without_consent_rejected(tmp_path) -> None:
     with pytest.raises(ProviderError):
         await handle_command("m1", {"action": "webcam", "start": True, "consent": False}, tmp_path, build_providers("fake"))
+
+
+@pytest.mark.asyncio
+async def test_webcam_start_returns_preview_frame(tmp_path) -> None:
+    result = await handle_command("m1", {"action": "webcam", "start": True, "consent": True}, tmp_path, build_providers("fake"))
+    assert result["webcam"] == "started"
+    assert result["webcam_frame"]["type"] == "webcam_frame"
+    assert result["webcam_frame"]["data"]
