@@ -1,8 +1,8 @@
 {% extends "base.html" %}
+{% set page_title = "Lab Management Dashboard" %}
+{% set page_subtitle = "Live machine status, active sessions, command volume, and recent audit activity." %}
 {% block title %}TelePC Dashboard{% endblock %}
 {% block styles %}<link rel="stylesheet" href="/static/css/teacher_dashboard.css">{% endblock %}
-{% block page_title %}Lab Management Dashboard{% endblock %}
-{% block page_subtitle %}Live machine status, active sessions, command volume, and recent audit activity.{% endblock %}
 {% block content %}
 <section class="stats-grid">
   <article class="card stat-card"><span id="online-count">0</span><small>Online machines</small></article>

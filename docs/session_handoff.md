@@ -25,6 +25,17 @@ py -3.12 -m pytest -q
 - `py -3.12 -m pytest -q`: passed, `42 passed`.
 - Default `python` on this machine is Python 3.10. It cannot run the suite because the project requires Python 3.11+ and imports `datetime.UTC`.
 
+## Final Acceptance Check
+
+- Pulled `origin/main`; repo was already current before final polish.
+- Re-ran `py -3.12 -m compileall .`: passed.
+- Re-ran `py -3.12 -m pytest -q`: passed, `42 passed`.
+- Smoke demo with `py -3.12 scripts/create_admin.py`, API, relay, and `run_3_fake_agents.py` passed.
+- Verified login page, dashboard, machines page, machine detail shell, fake screen frames over WebSocket, applications command result, processes command result, protected process denial, sandbox traversal block, file upload/dispatch, webcam consent text, Keyboard Demo scope text, power confirm/reason API, and per-machine audit logs.
+- Fixed final UI wiring issue: command results from the agent are wrapped in `payload.result`, and `apps/api/static/js/machine_detail.js` now unwraps them before rendering Applications, Processes, Webcam, and Power results.
+- Fixed shared topbar title rendering by changing the partial to page variables.
+- Final commit message: `Finalize TelePC demo readiness`; final hash is reported in the session result.
+
 ## Teacher Prototype UI Update
 
 - Prototype files found in `docs/teacher_prototypes/`.

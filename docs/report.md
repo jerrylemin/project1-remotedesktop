@@ -20,6 +20,13 @@ The hardened design adds short-lived WebSocket tickets so the browser does not e
 
 The teacher UI prototypes were applied as real product surfaces. `Topic01_Prototype.html` drives the bright admin dashboard and machine list: left navigation groups, dashboard cards, workstation table, and recent audit activity. `remote_control_web_prototype.html` drives the dark single-machine shell: connected topbar, module sidebar, Applications, Processes, Screen, Keyboard Demo, Files, Webcam, Power, and per-machine Audit Logs. Static prototype data was replaced with API calls and relay WebSocket events.
 
+UI description for submission screenshots:
+
+- Dashboard: light administrative layout with a dark left sidebar, four metric cards, workstation table, search/refresh controls, and recent audit feed.
+- Machines: searchable/filterable table with hostname, machine id, OS, status pill, last seen, active controller, and Manage action.
+- Machine detail: dark remote shell with connected topbar, machine metadata header, module sidebar, screen frame viewer, sandbox panel, consent notices, confirmation modal, and per-machine audit panel.
+- Safety UI: webcam consent checkbox, Keyboard Demo text area scoped to browser input only, Power reason modal, and sandbox-only file messaging.
+
 ## Chapter 5: Implementation
 
 The project uses Python 3.11, FastAPI, SQLAlchemy async, Jinja2, WebSocket relay endpoints, and a Python agent. Shared Pydantic envelopes keep relay protocol messages consistent.

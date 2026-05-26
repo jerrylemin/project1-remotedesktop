@@ -69,13 +69,18 @@ function handleWsResult(msg) {
     return;
   }
   const payload = msg.payload || {};
-  if (payload.processes) renderProcesses(payload.processes);
-  if (payload.applications) renderApplications(payload.applications);
-  if (payload.webcam) {
-    document.getElementById("webcam-status").textContent = payload.webcam;
-    document.getElementById("webcam-preview").textContent = payload.webcam === "started" ? "Webcam active with consent" : "Camera preview starts only after consent.";
+  if (payload.ok === false) {
+    alert(payload.error || "Command failed");
+    return;
   }
-  if (payload.action && payload.demo_safe) document.getElementById("power-result").textContent = `${payload.action} accepted for demo-safe agent flow`;
+  const result = payload.result || payload;
+  if (result.processes) renderProcesses(result.processes);
+  if (result.applications) renderApplications(result.applications);
+  if (result.webcam) {
+    document.getElementById("webcam-status").textContent = result.webcam;
+    document.getElementById("webcam-preview").textContent = result.webcam === "started" ? "Webcam active with consent" : "Camera preview starts only after consent.";
+  }
+  if (result.action && result.demo_safe) document.getElementById("power-result").textContent = `${result.action} accepted for demo-safe agent flow`;
   loadAudit().catch(() => {});
 }
 

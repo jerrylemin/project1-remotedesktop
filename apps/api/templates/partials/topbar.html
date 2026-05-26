@@ -1,7 +1,7 @@
 <header class="topbar">
   <div>
-    <h1>{% block page_title %}TelePC{% endblock %}</h1>
-    <p>{% block page_subtitle %}Authorized remote desktop lab management with consent and audit logs.{% endblock %}</p>
+    <h1>{{ page_title | default("TelePC") }}</h1>
+    <p>{{ page_subtitle | default("Authorized remote desktop lab management with consent and audit logs.") }}</p>
   </div>
   <div class="user-box">
     <span class="avatar">AD</span>

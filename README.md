@@ -29,6 +29,13 @@ python -m pip install -r requirements.txt
 python scripts/create_admin.py
 ```
 
+On Windows, if the default `python` is Python 3.10, use the launcher explicitly:
+
+```powershell
+py -3.12 -m pip install -r requirements.txt
+py -3.12 scripts/create_admin.py
+```
+
 Default demo admin:
 
 - Username: `admin`
@@ -44,12 +51,26 @@ python scripts/run_relay.py
 python scripts/run_fake_agent.py
 ```
 
+Windows launcher equivalent:
+
+```powershell
+py -3.12 scripts/run_api.py
+py -3.12 scripts/run_relay.py
+py -3.12 scripts/run_fake_agent.py
+```
+
 Then open `http://localhost:8000/admin/dashboard`.
 
 Run three fake agents for the multi-machine demo:
 
 ```powershell
 python scripts/run_3_fake_agents.py
+```
+
+or:
+
+```powershell
+py -3.12 scripts/run_3_fake_agents.py
 ```
 
 This connects `LAB-PC-01`, `LAB-PC-02`, and `HOME-PC-01` through the relay.
@@ -96,6 +117,13 @@ Notes:
 ```powershell
 python -m compileall .
 pytest -q
+```
+
+Windows launcher equivalent:
+
+```powershell
+py -3.12 -m compileall .
+py -3.12 -m pytest -q
 ```
 
 Latest local result with Python 3.12: `42 passed`.
