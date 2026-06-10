@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from apps.api.db import SessionLocal
 from apps.api.services.auth import create_user
@@ -20,6 +20,6 @@ async def test_ws_ticket_is_single_use(clean_db) -> None:
 
 def test_registry_stale_offline_transition() -> None:
     registry = RelayRegistry()
-    registry.last_heartbeat["m1"] = datetime.now(UTC) - timedelta(seconds=61)
+    registry.last_heartbeat["m1"] = datetime.now(timezone.utc) - timedelta(seconds=61)
     registry.statuses["m1"] = "online"
     assert registry.stale_or_offline(30, 60) == [("m1", "offline")]

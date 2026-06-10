@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from dataclasses import dataclass
 import importlib.util
+import os
 import platform
 import re
 import socket
@@ -14,9 +16,28 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from apps.agent.config import AgentSettings
-from apps.agent.consent import require_consent_banner
-from apps.agent.ws_client import run_agent
+from apps.agent.config import AgentSettings  # noqa: E402
+from apps.agent.consent import require_consent_banner  # noqa: E402
+from apps.agent.ws_client import run_agent  # noqa: E402
+
+REAL_MODE_CONFIRMATION = "TELEPC_LAB_AUTHORIZED"
+
+
+@dataclass
+class ClientConfig:
+    server: str = "127.0.0.1"
+    api_url: str | None = None
+    relay_url: str | None = None
+    api_port: int = 8000
+    relay_port: int = 8001
+    machine_id: str = ""
+    token: str = "fake-secret"
+    mode: str = "demo"
+    profile: str | None = None
+    confirm_real_mode: str | None = None
+    sandbox_root: str = "./sandbox"
+    skip_port_check: bool = False
+    connect_timeout: int = 0
 
 
 def default_machine_id() -> str:
@@ -71,7 +92,7 @@ def warn_missing_real_dependencies() -> None:
         print("[telepc-client] the client will still connect, but missing modules return clear command errors.", flush=True)
 
 
-def parse_args() -> argparse.Namespace:
+def parse_client_args(argv: list[str] | None = None) -> ClientConfig:
     parser = argparse.ArgumentParser(description="Connect this test machine to a TelePC controller.")
     parser.add_argument("--server", default="127.0.0.1", help="IP/hostname of the main TelePC machine.")
     parser.add_argument("--api-url", default=None, help="Full API URL, overrides --server/--api-port.")
@@ -79,12 +100,72 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-port", type=int, default=8000, help="API port on the main machine.")
     parser.add_argument("--relay-port", type=int, default=8001, help="Relay port on the main machine.")
     parser.add_argument("--machine-id", default=default_machine_id(), help="Name shown in the Machines page.")
-    parser.add_argument("--token", default="test-token", help="Lab token sent to relay. Keep non-empty.")
-    parser.add_argument("--mode", choices=["real", "fake"], default="real", help="Use real providers or fake demo providers.")
+    parser.add_argument("--token", default="fake-secret", help="Registered machine secret sent to relay. Keep non-empty.")
+    parser.add_argument("--mode", choices=["demo", "fake", "real"], default="demo", help="Use demo-safe fake providers or real lab providers.")
+    parser.add_argument("--profile", choices=["lab-real"], default=None, help="Explicit profile for authorized lab real mode.")
+    parser.add_argument("--confirm-real-mode", default=None, help="Required confirmation phrase for real lab input/power.")
     parser.add_argument("--sandbox-root", default="./sandbox", help="Local sandbox root on this test machine.")
     parser.add_argument("--skip-port-check", action="store_true", help="Skip TCP checks before connecting.")
     parser.add_argument("--connect-timeout", type=int, default=0, help="Seconds to wait for main machine. 0 waits forever.")
-    return parser.parse_args()
+    args = parser.parse_args(argv)
+    mode = "demo" if args.mode == "fake" else args.mode
+    return ClientConfig(
+        server=args.server,
+        api_url=args.api_url,
+        relay_url=args.relay_url,
+        api_port=args.api_port,
+        relay_port=args.relay_port,
+        machine_id=args.machine_id,
+        token=args.token,
+        mode=mode,
+        profile=args.profile,
+        confirm_real_mode=args.confirm_real_mode,
+        sandbox_root=args.sandbox_root,
+        skip_port_check=args.skip_port_check,
+        connect_timeout=args.connect_timeout,
+    )
+
+
+def apply_lab_real_profile(config: ClientConfig) -> ClientConfig:
+    if config.profile != "lab-real":
+        return config
+    if os.getenv("CI", "").lower() in {"1", "true", "yes"}:
+        raise SystemExit("CI must never enable TelePC lab-real mode.")
+    config.mode = "real"
+    return config
+
+
+def require_real_mode_confirmation(config: ClientConfig) -> None:
+    real_env_requested = any(
+        os.getenv(name, "").lower() == "true"
+        for name in ("TELEPC_ENABLE_REAL_INPUT", "TELEPC_ENABLE_REAL_POWER")
+    )
+    if config.mode != "real" and not real_env_requested:
+        return
+    if config.confirm_real_mode != REAL_MODE_CONFIRMATION:
+        raise SystemExit(
+            "Real mode refused. Safe usage: python client.py --profile lab-real "
+            f"--confirm-real-mode {REAL_MODE_CONFIRMATION}"
+        )
+
+
+def set_real_mode_environment(config: ClientConfig) -> None:
+    if config.mode != "real":
+        os.environ.pop("TELEPC_ENABLE_REAL_INPUT", None)
+        os.environ.pop("TELEPC_ENABLE_REAL_POWER", None)
+        os.environ.pop("TELEPC_REAL_MODE_CONFIRMED", None)
+        return
+    os.environ["TELEPC_ENABLE_REAL_INPUT"] = "true"
+    os.environ["TELEPC_ENABLE_REAL_POWER"] = "true"
+    os.environ["TELEPC_REAL_MODE_CONFIRMED"] = REAL_MODE_CONFIRMATION
+
+
+def parse_args() -> ClientConfig:
+    config = parse_client_args()
+    config = apply_lab_real_profile(config)
+    require_real_mode_confirmation(config)
+    set_real_mode_environment(config)
+    return config
 
 
 async def main_async() -> None:
@@ -111,7 +192,7 @@ async def main_async() -> None:
         machine_id=args.machine_id,
         sandbox_root=Path(args.sandbox_root),
         require_consent=True,
-        agent_mode=args.mode,
+        agent_mode="real" if args.mode == "real" else "fake",
     )
     settings.sandbox_root.mkdir(parents=True, exist_ok=True)
 

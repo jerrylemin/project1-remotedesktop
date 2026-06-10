@@ -3,9 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from apps.agent.consent import display_consent_prompt
 from apps.agent.files import get_file, put_file
 from apps.agent.power_provider import run_power_action
 from apps.agent.providers import AgentProviders, build_providers
+from apps.agent.remote_files import discover_allowed_remote_folders, download_allowed_file, list_files_in_allowed_folder
+from apps.agent import webcam as webcam_module
 
 PROTECTED_PROCESS_NAMES = {"lsass.exe", "winlogon.exe", "csrss.exe", "services.exe", "system", "registry"}
 
@@ -18,7 +21,9 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
     if action == "list_applications":
         return {"applications": providers.apps.list_applications()}
     if action == "start_application":
-        return providers.apps.start_application(command["command"])
+        return providers.apps.start_application(str(command.get("app_key") or command.get("name") or command.get("command")))
+    if action == "start_process":
+        return providers.apps.start_application(command["process_key"])
     if action == "stop_application":
         return providers.apps.stop_application(command["name"], bool(command.get("confirm")))
     if action == "stop_process":
@@ -28,6 +33,8 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
         return providers.processes.stop_process(int(command["pid"]), bool(command.get("confirm")))
     if action == "input_event":
         return providers.input_controller.handle_input(command)
+    if action == "consent_request":
+        return display_consent_prompt(dict(command["request"]))
     if action == "capture_screen":
         return providers.screen.capture_frame(machine_id, command.get("session_id"))
     if action in {"start_live_screen", "screen_start"}:
@@ -50,12 +57,25 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
         )
     if action == "file_get":
         return get_file(sandbox_root, machine_id, str(command["path"]))
+    if action == "remote_files_roots":
+        return {"allowed_folders": discover_allowed_remote_folders()}
+    if action == "remote_files_list":
+        if not command.get("consent"):
+            raise PermissionError("file_list_consent_required")
+        return {"files": list_files_in_allowed_folder(str(command["root_path"]), str(command.get("relative_path") or ""))}
+    if action == "remote_file_download":
+        if not command.get("consent"):
+            raise PermissionError("file_download_consent_required")
+        filename, data = download_allowed_file(str(command["root_path"]), str(command["relative_path"]))
+        return {"filename": filename, "content_base64": __import__("base64").b64encode(data).decode()}
     if action == "webcam":
         start = bool(command.get("start"))
-        result = providers.webcam.set_webcam(start, bool(command.get("consent")))
+        result = providers.webcam.set_webcam(start, bool(command.get("consent")), command.get("device_id"))
         if start:
             result["webcam_frame"] = providers.webcam.snapshot(machine_id)
         return result
+    if action == "webcam_devices":
+        return {"webcam_devices": webcam_module.list_webcam_devices()}
     if action == "webcam_snapshot":
         if not command.get("consent"):
             raise PermissionError("webcam_consent_required")

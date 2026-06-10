@@ -90,6 +90,10 @@ class ProcessStopIn(BaseModel):
     confirm: bool = False
 
 
+class ProcessStartIn(BaseModel):
+    process_key: str
+
+
 class ScreenActionIn(BaseModel):
     mode: str = "screenshot"
     consent: bool = True
@@ -97,6 +101,7 @@ class ScreenActionIn(BaseModel):
 
 class WebcamActionIn(BaseModel):
     consent: bool = False
+    device_id: str | None = None
 
 
 class PowerActionIn(BaseModel):
@@ -111,6 +116,37 @@ class FileDispatchIn(BaseModel):
 
 class FileGetIn(BaseModel):
     path: str
+
+
+class RemoteFileListIn(BaseModel):
+    root_path: str
+    relative_path: str = ""
+    consent: bool = False
+
+
+class ConsentRequestIn(BaseModel):
+    command_type: str
+    reason: str
+    ttl_seconds: int = Field(default=300, ge=1, le=3600)
+
+
+class ConsentDecisionIn(BaseModel):
+    decision: str
+    decided_by: str = "agent"
+
+
+class ConsentRequestOut(BaseModel):
+    id: str
+    command_id: str | None
+    machine_id: str
+    requested_by: str
+    command_type: str
+    status: str
+    reason: str
+    expires_at: datetime
+    decided_by: str | None
+    decided_at: datetime | None
+    created_at: datetime
 
 
 class SandboxFileOut(BaseModel):

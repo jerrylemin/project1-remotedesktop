@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
 
 from apps.relay.main import app
 from shared.protocol import make_envelope
@@ -49,11 +47,15 @@ def test_observer_cannot_send_input(monkeypatch) -> None:
     async def noop_status(*args, **kwargs):
         return None
 
+    async def accept_agent(machine_id: str, machine_secret: str) -> bool:
+        return True
+
     async def fake_active(machine_id: str):
         return {"id": "s1", "machine_id": machine_id, "controller_user_id": 1}
 
     monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
     monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
+    monkeypatch.setattr("apps.relay.router.validate_agent_secret", accept_agent)
     monkeypatch.setattr("apps.relay.api_client.active_control_session", fake_active)
     monkeypatch.setattr("apps.relay.router.active_control_session", fake_active)
     with TestClient(app) as client:
@@ -75,11 +77,15 @@ def test_controller_can_send_command(monkeypatch) -> None:
     async def noop_status(*args, **kwargs):
         return None
 
+    async def accept_agent(machine_id: str, machine_secret: str) -> bool:
+        return True
+
     async def fake_active(machine_id: str):
         return {"id": "s1", "machine_id": machine_id, "controller_user_id": 1}
 
     monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
     monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
+    monkeypatch.setattr("apps.relay.router.validate_agent_secret", accept_agent)
     monkeypatch.setattr("apps.relay.router.active_control_session", fake_active)
     with TestClient(app) as client:
         with client.websocket_connect("/ws/agent") as agent, client.websocket_connect("/ws/admin") as admin:

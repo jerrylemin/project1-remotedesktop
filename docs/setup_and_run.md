@@ -26,6 +26,18 @@ $env:MACHINE_TOKEN="<machine-secret>"
 python scripts/run_agent.py
 ```
 
+Build one-file Windows client executable:
+
+```powershell
+.\scripts\build_client_exe.ps1 -InstallPyInstaller
+```
+
+Expected artifact:
+
+```text
+dist\TelePCClient.exe
+```
+
 Default storage:
 
 - SQLite database: `./telepc.db`

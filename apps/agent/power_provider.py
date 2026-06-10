@@ -5,8 +5,6 @@ import subprocess
 from typing import Any
 
 
-REAL_POWER = os.getenv("TELEPC_ENABLE_REAL_POWER", "false").lower() == "true"
-
 COMMANDS = {
     "restart": ["shutdown", "/r", "/t", "30", "/c"],
     "shutdown": ["shutdown", "/s", "/t", "30", "/c"],
@@ -29,7 +27,14 @@ def run_power_action(action: str, reason: str = "", *, real_power: bool | None =
     action = action.lower()
     if action in {"restart", "shutdown"} and len(reason.strip()) < 5:
         raise PermissionError("power action requires a reason of at least 5 characters")
-    enabled = REAL_POWER if real_power is None else real_power
+    if real_power is None:
+        enabled = (
+            os.getenv("TELEPC_ENABLE_REAL_POWER", "false").lower() == "true"
+            and os.getenv("TELEPC_REAL_MODE_CONFIRMED") == "TELEPC_LAB_AUTHORIZED"
+            and "PYTEST_CURRENT_TEST" not in os.environ
+        )
+    else:
+        enabled = real_power
     command = build_power_command(action, reason)
     if not enabled:
         return {"action": action, "demo_safe": True, "command_built": " ".join(command), "executed": False, "real_power_enabled": False}

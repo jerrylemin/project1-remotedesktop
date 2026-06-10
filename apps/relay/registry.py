@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import WebSocket
@@ -27,7 +27,7 @@ class RelayRegistry:
 
     async def register_agent(self, machine_id: str, websocket: WebSocket) -> None:
         self.agents[machine_id] = websocket
-        self.last_heartbeat[machine_id] = datetime.now(UTC)
+        self.last_heartbeat[machine_id] = datetime.now(timezone.utc)
         self.statuses[machine_id] = "online"
 
     def unregister_agent(self, websocket: WebSocket) -> list[str]:
@@ -84,11 +84,11 @@ class RelayRegistry:
         return set(self.subscribers.get(machine_id, set()))
 
     def touch_heartbeat(self, machine_id: str) -> None:
-        self.last_heartbeat[machine_id] = datetime.now(UTC)
+        self.last_heartbeat[machine_id] = datetime.now(timezone.utc)
         self.statuses[machine_id] = "online"
 
     def stale_or_offline(self, stale_after_seconds: int, offline_after_seconds: int) -> list[tuple[str, str]]:
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         transitions: list[tuple[str, str]] = []
         for machine_id, last_seen in list(self.last_heartbeat.items()):
             elapsed = (now - last_seen).total_seconds()

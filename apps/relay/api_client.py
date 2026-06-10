@@ -39,6 +39,22 @@ async def update_machine_status(machine_id: str, status: str, metadata: dict[str
         logger.warning("machine status update failed machine=%s status=%s error=%s", machine_id, status, exc)
 
 
+async def validate_machine_secret(machine_id: str, machine_secret: str) -> dict[str, Any] | None:
+    settings = get_relay_settings()
+    try:
+        async with httpx.AsyncClient(timeout=3, headers=internal_headers()) as client:
+            response = await client.post(
+                f"{settings.api_url}/internal/machines/verify-secret",
+                json={"machine_id": machine_id, "machine_secret": machine_secret},
+            )
+            if response.status_code != 200:
+                return None
+            return response.json()
+    except httpx.HTTPError as exc:
+        logger.warning("machine secret validation failed machine=%s error=%s", machine_id, exc)
+        return None
+
+
 async def active_control_session(machine_id: str) -> dict[str, Any] | None:
     settings = get_relay_settings()
     try:

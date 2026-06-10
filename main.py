@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from apps.api.seed import seed_admin
+from apps.api.seed import seed_admin  # noqa: E402
 
 
 def local_check_host(host: str) -> str:
@@ -112,7 +112,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--relay-port", type=int, default=8001, help="Relay port.")
     parser.add_argument("--username", default="admin", help="Demo admin username to seed.")
     parser.add_argument("--password", default="admin123", help="Demo admin password to seed.")
-    parser.add_argument("--no-agents", action="store_true", help="Start only API and relay, without fake agents.")
+    parser.add_argument("--no-agents", action="store_true", help="Deprecated alias for the production-safe default.")
+    parser.add_argument("--demo-agents", action="store_true", help="Start fake demo agents and seed fake demo machines.")
     parser.add_argument("--skip-firewall", action="store_true", help="Do not try to add Windows Firewall rules.")
     return parser.parse_args()
 
@@ -130,8 +131,8 @@ def main() -> int:
             ensure_windows_firewall_rule(f"TelePC API {args.api_port}", args.api_port)
             ensure_windows_firewall_rule(f"TelePC Relay {args.relay_port}", args.relay_port)
 
-        print("[telepc] preparing database and demo admin", flush=True)
-        asyncio.run(seed_admin(args.username, args.password))
+        print("[telepc] preparing database and admin user", flush=True)
+        asyncio.run(seed_admin(args.username, args.password, include_demo_machines=args.demo_agents))
         print(f"[telepc] admin ready: {args.username} / {args.password}", flush=True)
 
         api_url = f"http://{local_host}:{args.api_port}"
@@ -155,7 +156,7 @@ def main() -> int:
             children.append(("relay", relay))
             wait_for_port(args.host, args.relay_port, "Relay")
 
-        if not args.no_agents:
+        if args.demo_agents and not args.no_agents:
             agents = start_child("fake agents", ["scripts/run_3_fake_agents.py"], env={"API_URL": api_url, "RELAY_URL": relay_url})
             children.append(("fake agents", agents))
 
@@ -166,7 +167,7 @@ def main() -> int:
             print(f"[telepc] LAN URL: http://{ip}:{args.api_port}/admin/login", flush=True)
             print(f"[telepc] Test machine command: py -3.12 client.py --server {ip} --machine-id LAB-PC-REAL-01", flush=True)
         print(f"[telepc] Login: {args.username} / {args.password}", flush=True)
-        print("[telepc] Press Ctrl+C to stop API, relay, and fake agents.", flush=True)
+        print("[telepc] Press Ctrl+C to stop TelePC.", flush=True)
         print("", flush=True)
 
         while True:

@@ -33,6 +33,31 @@ def webcam_status(start: bool, consent: bool) -> dict[str, object]:
     return {"webcam": "started" if start else "stopped", "consent": consent, "fps": webcam_fps()}
 
 
+def list_webcam_devices(max_devices: int = 10) -> list[dict[str, object]]:
+    try:
+        import cv2
+    except ImportError:
+        return []
+    backend = getattr(cv2, "CAP_DSHOW", 0)
+    devices: list[dict[str, object]] = []
+    for index in range(max_devices):
+        capture = cv2.VideoCapture(index, backend)
+        try:
+            if capture.isOpened():
+                devices.append(
+                    {
+                        "device_id": f"camera-{index}",
+                        "index": index,
+                        "name": f"Camera {index}",
+                        "backend": "opencv",
+                        "available": True,
+                    }
+                )
+        finally:
+            capture.release()
+    return devices
+
+
 def fake_webcam_frame(machine_id: str = "fake-machine-001", frame_no: int = 1) -> dict[str, Any]:
     image = Image.new("RGB", (640, 360), color=(30, 28, 42))
     draw = ImageDraw.Draw(image)

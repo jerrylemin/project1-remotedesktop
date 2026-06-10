@@ -52,7 +52,7 @@ class AppLauncher(ABC):
 
 class WebcamProvider(ABC):
     @abstractmethod
-    def set_webcam(self, start: bool, consent: bool) -> dict[str, Any]:
+    def set_webcam(self, start: bool, consent: bool, device_id: str | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
     @abstractmethod
@@ -133,10 +133,10 @@ class RealAppLauncher(AppLauncher):
 
 
 class FakeWebcamProvider(WebcamProvider):
-    def set_webcam(self, start: bool, consent: bool) -> dict[str, Any]:
+    def set_webcam(self, start: bool, consent: bool, device_id: str | None = None) -> dict[str, Any]:
         if start and not consent:
             raise ProviderError("webcam requires explicit consent")
-        return {"webcam": "started" if start else "stopped", "fake": True}
+        return {"webcam": "started" if start else "stopped", "fake": True, "device_id": device_id}
 
     def snapshot(self, machine_id: str) -> dict[str, Any]:
         return fake_webcam_frame(machine_id)
@@ -147,14 +147,15 @@ class RealWebcamProvider(WebcamProvider):
         self._capture = None
         self._frame_no = 0
 
-    def set_webcam(self, start: bool, consent: bool) -> dict[str, Any]:
+    def set_webcam(self, start: bool, consent: bool, device_id: str | None = None) -> dict[str, Any]:
         try:
             import cv2
         except ImportError as exc:
             raise ProviderError("opencv-python is not installed; webcam unavailable") from exc
         if start and consent:
             self._release()
-            capture = cv2.VideoCapture(0)
+            index = int((device_id or "camera-0").removeprefix("camera-"))
+            capture = cv2.VideoCapture(index)
             capture.set(cv2.CAP_PROP_FRAME_WIDTH, webcam_width())
             capture.set(cv2.CAP_PROP_FRAME_HEIGHT, webcam_height())
             capture.set(cv2.CAP_PROP_FPS, webcam_fps())

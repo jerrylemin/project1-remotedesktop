@@ -246,11 +246,59 @@ $env:TELEPC_WEBCAM_WIDTH="640"
 $env:TELEPC_WEBCAM_HEIGHT="360"
 ```
 
+Lab-real mode is deliberately not the default. Plain `python client.py` runs demo-safe fake providers. To enable real input and real power on an authorized lab machine, use the explicit helper:
+
+```powershell
+.\scripts\run_lab_real_client.ps1 --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>
+```
+
+Equivalent direct launch:
+
+```powershell
+python client.py --profile lab-real --confirm-real-mode TELEPC_LAB_AUTHORIZED --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>
+```
+
+Build a one-file Windows client executable:
+
+```powershell
+.\scripts\build_client_exe.ps1 -InstallPyInstaller
+```
+
+The expected artifact is:
+
+```text
+dist\TelePCClient.exe
+```
+
+Use `-InstallPyInstaller` the first time only; later builds can run `.\scripts\build_client_exe.ps1`.
+
 Real keyboard input from the Keyboard Demo panel:
 
 ```powershell
-$env:TELEPC_ENABLE_REAL_INPUT="true"
-py -3.12 client.py --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --mode real
+.\scripts\run_lab_real_client.ps1 --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>
 ```
 
 In the browser, claim control, open Keyboard Demo, click `Start Real Input`, then type inside the demo box. TelePC waits for the relay to acknowledge the admin WebSocket as `controller` before sending key events. It forwards key codes such as `KeyA` and `Enter`; it does not capture global keystrokes or store typed characters.
+
+## Security and Consent Model
+
+- Relay agent websocket auth verifies the machine id and machine secret against the registered machine record.
+- Disabled or unknown machines cannot connect.
+- Teacher access is machine-grant scoped; admins can access all machines, auditors remain read-only.
+- Sensitive actions create a consent request and are blocked until the visible controlled-machine agent approves it.
+- Screen frames do not stream on websocket connection; live screen starts only after a consent-approved command.
+- Real power requires `TELEPC_ENABLE_REAL_POWER=true` and `TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED`; tests force demo-safe behavior.
+
+## Submission Cleanup
+
+Create a clean submission archive under `artifacts/submission/`:
+
+```powershell
+.\scripts\prepare_submission.ps1
+```
+
+```bash
+sh scripts/prepare_submission.sh
+```
+
+The cleanup scripts remove caches, local `.env`, local SQLite databases, and generated local artifacts from the archive while keeping source, tests, docs, and `.env.example`.

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.config import get_settings
 from apps.api.db import get_db
-from apps.api.models import User
+from apps.api.models import MachineGrant, User
 from apps.api.security import decode_access_token
 from shared.enums import ROLE_PERMISSIONS, Permission
 
@@ -42,6 +42,39 @@ def require_permission(permission: Permission):
         return user
 
     return dependency
+
+
+def user_role_names(user: User) -> set[str]:
+    return {role.name for role in user.roles}
+
+
+async def require_machine_access(
+    db: AsyncSession,
+    user: User,
+    machine_id: str,
+    action: str,
+) -> None:
+    roles = user_role_names(user)
+    if "admin" in roles:
+        return
+    if "agent" in roles:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="agent identity cannot use web actions")
+    action_field = {
+        "view": "can_view",
+        "control": "can_control",
+        "file": "can_file",
+        "webcam": "can_webcam",
+        "power": "can_power",
+        "audit": "can_audit",
+    }.get(action)
+    if action_field is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="unknown machine action")
+    if "auditor" in roles and action != "audit":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="permission denied")
+    grant = await db.scalar(select(MachineGrant).where(MachineGrant.user_id == user.id, MachineGrant.machine_id == machine_id))
+    if grant is not None and bool(getattr(grant, action_field)):
+        return
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="machine grant required")
 
 
 def cookie_name() -> str:

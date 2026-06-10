@@ -1,5 +1,26 @@
 # Feature Progress
 
+## Strict Prompt Packaging Slice (2026-06-01)
+
+- Added `scripts/package_client_exe.py` with a `package_client_exe() -> Path` helper that invokes PyInstaller in one-file mode.
+- Added `scripts/build_client_exe.ps1`; run `.\scripts\build_client_exe.ps1 -InstallPyInstaller` for the first build, then `.\scripts\build_client_exe.ps1` for repeat builds.
+- Expected client artifact is `dist\TelePCClient.exe`.
+- Added `tests/test_client_exe_packaging.py`.
+- Verification: `python -m pytest tests/test_client_exe_packaging.py -q` passed, 4 tests.
+- Packaging verification: `.\scripts\build_client_exe.ps1` built `dist\TelePCClient.exe`, and `.\dist\TelePCClient.exe --help` passed.
+- Full verification after the Phase 0 re-audit: compileall passed, ruff passed, pytest passed with 118 tests, and API smoke returned `/health` 200, `/admin/login` 200, and unauthenticated `/api/machines` 401.
+
+## Strict Prompt Completion Slice (2026-06-01)
+
+- Production machine listing hides fake/demo machine rows unless demo mode is explicitly requested.
+- `seed_admin()` and `main.py` no longer seed/start fake demo machines by default.
+- Application whitelist is now Zalo, Discord, VSCode, Chrome, Notepad.
+- API application start/stop requires consent and rejects non-whitelisted/raw command starts.
+- Added `apps.agent.remote_files` for existing `X:\Remote` roots with path escape protections.
+- Added API remote file list/download commands with consent gates.
+- Added webcam device enumeration and API-selected `device_id` start.
+- Added native Tkinter consent popup path with Yes/No/15-second timeout and deny-on-failure behavior.
+
 ## Completed In Current Milestone
 
 - API server with auth, machine enrollment/list/detail, sessions, audit, files, and jobs endpoints.
@@ -56,3 +77,21 @@
 - Follow-up UI guard: machine commands now stop client-side with clear messages when control has not been claimed, webcam consent is unchecked, or uploads fail validation; file upload dispatch now uses the real `/api/machines/{id}/file-dispatch` command path.
 - Follow-up input guard: Keyboard Demo input now waits for controller-role acknowledgment before sending key codes, and global page keyboard forwarding is disabled so only typed keys inside the demo box are sent.
 - Follow-up power guard: lock/cancel are confirmed and audited without requiring a reason, while restart/shutdown keep the minimum reason requirement.
+
+## Defense Readiness Pass (2026-05-30)
+
+- Added strict relay machine-secret verification through the internal API; unknown, empty, wrong, and disabled machine credentials are rejected and audited without leaking secrets.
+- Added durable consent request, decision, policy models and service helpers.
+- Added consent request/decision API routes and wired sensitive UI actions to request local agent approval before execution.
+- Screen streaming no longer starts immediately after agent websocket auth; the agent starts frames only after a `screen_start` command and stops on `screen_stop`.
+- Added machine-scoped grant enforcement for teacher access to machine control, file, webcam, power, audit, and view actions.
+- Changed root `client.py` default to demo-safe mode and added explicit lab-real confirmation helpers.
+- Added first-class allowlisted process start route and agent command handling.
+- Added `/health`, lab-real launcher, submission cleanup scripts, and final defense docs.
+
+## Verification
+
+- `python -m compileall .`: passed.
+- `python -m pytest -q`: passed, 94 tests.
+- `ruff check .`: passed.
+- Smoke: `/health` returned 200, `/admin/login` returned 200, `/api/machines` without auth returned 401.

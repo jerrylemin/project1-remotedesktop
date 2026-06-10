@@ -13,8 +13,12 @@ def test_fake_agent_frame_forwarded(monkeypatch) -> None:
     async def noop_status(*args, **kwargs):
         return None
 
+    async def accept_agent(machine_id: str, machine_secret: str) -> bool:
+        return True
+
     monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
     monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
+    monkeypatch.setattr("apps.relay.router.validate_agent_secret", accept_agent)
     with TestClient(app) as client:
         with client.websocket_connect("/ws/agent") as agent, client.websocket_connect("/ws/admin") as admin:
             agent.send_json(make_envelope("auth", machine_id="m1", payload={"machine_id": "m1", "machine_secret": "secret"}))

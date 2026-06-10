@@ -1,5 +1,73 @@
 # Session Handoff
 
+## Strict prompt packaging slice (2026-06-01)
+
+Current status:
+
+- Phase 0 context was rerun for the stricter TelePC prompt.
+- Repo is not a Git checkout in this workspace; `git status --short` fails with "not a git repository".
+- Graphify was refreshed with `graphify update .`; report now shows 1111 nodes and 3280 edges.
+- Baseline verification passed on Python 3.11.9: `python -m compileall .`, `ruff check .`, and `python -m pytest -q` with 98 tests after adding packaging coverage.
+- Added one-file Windows client packaging support:
+  - `scripts/package_client_exe.py`
+  - `scripts/build_client_exe.ps1`
+  - `tests/test_client_exe_packaging.py`
+- Focused packaging test passed: `4 passed`.
+- `.\scripts\build_client_exe.ps1` built `dist\TelePCClient.exe`.
+- `.\dist\TelePCClient.exe --help` passed.
+- API smoke on port 8765 passed: `/health` 200, `/admin/login` 200, `/api/machines` unauthenticated 401.
+
+2026-06-01 continuation:
+
+- Production machine listing hides fake/demo machines by default.
+- `seed_admin()` no longer creates fake machines unless explicitly requested; `main.py` starts fake agents only with `--demo-agents`.
+- Application whitelist now matches Zalo, Discord, VSCode, Chrome, Notepad. API ignores raw app command strings and requires consent for start/stop.
+- Agent and API now support `X:\Remote` whitelist file listing/download commands with consent gates.
+- Agent and API now support webcam device enumeration and selected `device_id` before start.
+- Agent consent now has a native Tkinter popup path with Yes, No, topmost window, timeout denial, and popup-failure denial.
+- Verification: compileall passed, ruff passed, pytest passed with 118 tests, EXE rebuilt, `TelePCClient.exe --help` passed, API smoke passed.
+
+Remaining strict-compliance blocker:
+
+- Physical Windows lab validation of the rebuilt EXE, real popup focus behavior, real `X:\Remote` discovery, USB/built-in webcam enumeration, and live device start is still pending.
+
+First command next:
+
+```powershell
+python -m pytest -q
+```
+
+## Defense Readiness Pass (2026-05-30)
+
+Current status:
+
+- Relay machine auth now verifies registered machine secrets through `/internal/machines/verify-secret`; failed and successful attempts are audited without secret values.
+- `MachineGrant` is enforced for non-admin machine-scoped actions.
+- Durable consent records and decision APIs exist; the UI relays consent requests to the visible agent prompt and records approve/deny before sensitive actions.
+- Agent screen frames are command-gated and no longer stream immediately after websocket connection.
+- Root `client.py` defaults to demo mode. Lab-real mode requires `--profile lab-real --confirm-real-mode TELEPC_LAB_AUTHORIZED` or `scripts/run_lab_real_client.ps1`.
+- Real power execution also requires `TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED` and is disabled under pytest.
+- Added first-class allowlisted process start, `/health`, and submission cleanup scripts.
+
+Verification:
+
+- `python -m compileall .`: passed.
+- `python -m pytest -q`: passed, 94 tests.
+- `ruff check .`: passed.
+- Smoke API: `/health` 200, `/admin/login` 200, unauthenticated `/api/machines` 401.
+
+Next first command:
+
+```powershell
+python -m pytest -q
+```
+
+Files to read first next time:
+
+- `docs/implementation_plan_10_10.md`
+- `docs/final_compliance_report.md`
+- `docs/security_consent_audit.md`
+
 Date: 2026-05-26
 
 ## Current State

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -25,8 +25,8 @@ async def test_machine_status_transition_audits_only_on_change(clean_db) -> None
 
 def test_relay_registry_stale_and_offline_transitions() -> None:
     registry = RelayRegistry()
-    registry.last_heartbeat["m1"] = datetime.now(UTC) - timedelta(seconds=20)
+    registry.last_heartbeat["m1"] = datetime.now(timezone.utc) - timedelta(seconds=20)
     registry.statuses["m1"] = "online"
     assert registry.stale_or_offline(stale_after_seconds=10, offline_after_seconds=30) == [("m1", "stale")]
-    registry.last_heartbeat["m1"] = datetime.now(UTC) - timedelta(seconds=40)
+    registry.last_heartbeat["m1"] = datetime.now(timezone.utc) - timedelta(seconds=40)
     assert registry.stale_or_offline(stale_after_seconds=10, offline_after_seconds=30) == [("m1", "offline")]

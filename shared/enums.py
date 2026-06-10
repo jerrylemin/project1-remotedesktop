@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from enum import StrEnum
+try:
+    from enum import StrEnum
+except ImportError:
+    from enum import Enum
+
+    class StrEnum(str, Enum):
+        pass
 
 
 class EnvelopeType(StrEnum):
@@ -79,6 +85,7 @@ AUDIT_EVENT_TYPES = {
     "application_stopped",
     "processes_listed",
     "process_stopped",
+    "process_started",
     "keylogger_demo_started",
     "keylogger_demo_stopped",
     "file_uploaded_to_server",
@@ -98,4 +105,12 @@ AUDIT_EVENT_TYPES = {
     "auth_failed",
     "acl_denied",
     "command_failed",
+    "agent_auth_succeeded",
+    "agent_auth_failed",
+    "consent_requested",
+    "consent_approved",
+    "consent_denied",
+    "consent_expired",
+    "consent_missing",
+    "consent_blocked",
 }

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import pytest
-import pytest_asyncio
 import os
 import sys
 import tempfile
 from pathlib import Path
+
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -19,9 +19,9 @@ for stale_path in (TEST_DB_PATH, TEST_DB_PATH.with_name(f"{TEST_DB_PATH.name}-jo
     except FileNotFoundError:
         pass
 
-from apps.api.db import Base, SessionLocal, engine
-from apps.api.main import app
-from apps.api.services.auth import create_user
+from apps.api.db import Base, SessionLocal, engine  # noqa: E402
+from apps.api.main import app  # noqa: E402
+from apps.api.services.auth import create_user  # noqa: E402
 
 
 def pytest_sessionfinish(session, exitstatus):

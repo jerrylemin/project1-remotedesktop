@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 
 from apps.api.config import get_settings
 
@@ -27,4 +28,9 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if engine.url.get_backend_name().startswith("sqlite"):
+            columns = await conn.execute(text("PRAGMA table_info(machines)"))
+            column_names = {row[1] for row in columns}
+            if "enabled" not in column_names:
+                await conn.execute(text("ALTER TABLE machines ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT 1"))
 

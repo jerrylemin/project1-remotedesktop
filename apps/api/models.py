@@ -47,6 +47,7 @@ class Machine(Base):
     os: Mapped[str] = mapped_column(String(255), default="unknown")
     username: Mapped[str] = mapped_column(String(255), default="unknown")
     status: Mapped[str] = mapped_column(String(32), default="offline")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     secret: Mapped["MachineSecret | None"] = relationship(back_populates="machine", uselist=False)
 
@@ -163,3 +164,37 @@ class EnrollToken(Base):
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ConsentRequest(Base):
+    __tablename__ = "consent_requests"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    command_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    machine_id: Mapped[str] = mapped_column(ForeignKey("machines.machine_id"), index=True)
+    requested_by: Mapped[str] = mapped_column(String(80), index=True)
+    command_type: Mapped[str] = mapped_column(String(80), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    reason: Mapped[str] = mapped_column(String(255))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    decided_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, index=True)
+
+
+class ConsentDecision(Base):
+    __tablename__ = "consent_decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    consent_id: Mapped[str] = mapped_column(ForeignKey("consent_requests.id"), index=True)
+    decision: Mapped[str] = mapped_column(String(32))
+    decided_by: Mapped[str] = mapped_column(String(80))
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
+class ConsentPolicy(Base):
+    __tablename__ = "consent_policies"
+
+    command_type: Mapped[str] = mapped_column(String(80), primary_key=True)
+    requires_consent: Mapped[bool] = mapped_column(Boolean, default=True)
+    ttl_seconds: Mapped[int] = mapped_column(Integer, default=300)

@@ -9,7 +9,7 @@ async def test_sandbox_job_history(api_client, admin_token: str) -> None:
         job = await create_job(db, "m1", "python demo.py", None, 5)
         await finish_job(db, job, "hello output", "", 0)
         await db.commit()
-    response = await api_client.get(f"/api/jobs/machines/m1/history", headers={"Authorization": f"Bearer {admin_token}"})
+    response = await api_client.get("/api/jobs/machines/m1/history", headers={"Authorization": f"Bearer {admin_token}"})
     assert response.status_code == 200
     rows = response.json()
     assert rows[0]["status"] == "finished"

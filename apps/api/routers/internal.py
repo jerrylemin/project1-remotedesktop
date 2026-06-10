@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.db import get_db
 from apps.api.deps_internal import require_internal_secret
 from apps.api.services.audit import record_audit
-from apps.api.services.machine import upsert_machine_status
+from apps.api.services.machine import require_valid_machine, upsert_machine_status
 from apps.api.services.session import get_active_control_session, release_active_control_session
 
 router = APIRouter(prefix="/internal", tags=["internal"], dependencies=[Depends(require_internal_secret)])
@@ -31,6 +31,16 @@ class MachineStatusIn(BaseModel):
     hostname: str | None = None
     os: str | None = None
     username: str | None = None
+
+
+class MachineSecretVerifyIn(BaseModel):
+    machine_id: str
+    machine_secret: str
+
+
+class MachineIdentityOut(BaseModel):
+    machine_id: str
+    status: str
 
 
 class InternalControlSessionOut(BaseModel):
@@ -67,6 +77,46 @@ async def internal_machine_status(body: MachineStatusIn, db: AsyncSession = Depe
     )
     await db.commit()
     return {"status": "ok"}
+
+
+@router.post("/machines/verify-secret", response_model=MachineIdentityOut)
+async def internal_verify_machine_secret(body: MachineSecretVerifyIn, db: AsyncSession = Depends(get_db)) -> MachineIdentityOut:
+    try:
+        machine = await require_valid_machine(db, body.machine_id, body.machine_secret)
+    except LookupError:
+        await record_audit(
+            db,
+            event_type="agent_auth_failed",
+            summary="Agent machine auth failed: unknown machine",
+            actor_type="agent",
+            machine_id=body.machine_id or None,
+            metadata={"reason": "unknown_machine"},
+        )
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid machine credentials")
+    except PermissionError as exc:
+        reason = str(exc)
+        await record_audit(
+            db,
+            event_type="agent_auth_failed",
+            summary=f"Agent machine auth failed: {reason}",
+            actor_type="agent",
+            machine_id=body.machine_id or None,
+            metadata={"reason": reason},
+        )
+        await db.commit()
+        code = status.HTTP_403_FORBIDDEN if reason == "machine_disabled" else status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(status_code=code, detail="invalid machine credentials") from exc
+    await record_audit(
+        db,
+        event_type="agent_auth_succeeded",
+        summary="Agent machine auth succeeded",
+        actor_type="agent",
+        machine_id=machine.machine_id,
+        metadata={"status": machine.status},
+    )
+    await db.commit()
+    return MachineIdentityOut(machine_id=machine.machine_id, status=machine.status)
 
 
 @router.get("/control-session/{machine_id}", response_model=InternalControlSessionOut)

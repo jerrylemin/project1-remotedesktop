@@ -41,8 +41,8 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                     ))
                 )
                 await ws.recv()
-                frame_task = asyncio.create_task(send_frames(ws, settings, providers))
                 heartbeat_task = asyncio.create_task(send_heartbeats(ws, settings))
+                frame_task: asyncio.Task | None = None
                 webcam_task: asyncio.Task | None = None
                 try:
                     async for raw in ws:
@@ -53,7 +53,15 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                                 result = await handle_command(settings.machine_id, command_payload, settings.sandbox_root, providers)
                                 payload = {"ok": True, "result": result}
                                 action = command_payload.get("action")
-                                if action == "webcam" and command_payload.get("start"):
+                                if action in {"start_live_screen", "screen_start"}:
+                                    if frame_task is not None:
+                                        frame_task.cancel()
+                                    frame_task = asyncio.create_task(send_frames(ws, settings, providers))
+                                elif action in {"stop_live_screen", "screen_stop"}:
+                                    if frame_task is not None:
+                                        frame_task.cancel()
+                                        frame_task = None
+                                elif action == "webcam" and command_payload.get("start"):
                                     if webcam_task is not None:
                                         webcam_task.cancel()
                                     webcam_task = asyncio.create_task(send_webcam_frames(ws, settings, providers))
@@ -67,8 +75,9 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                                 payload = {"ok": False, "error": str(exc), "event_type": "command_failed"}
                             await ws.send(json.dumps(make_envelope(EnvelopeType.COMMAND_RESULT, machine_id=settings.machine_id, session_id=envelope.session_id, payload=payload)))
                 finally:
-                    frame_task.cancel()
                     heartbeat_task.cancel()
+                    if frame_task is not None:
+                        frame_task.cancel()
                     if webcam_task is not None:
                         webcam_task.cancel()
         except asyncio.CancelledError:

@@ -6,11 +6,11 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 APP_ALLOWLIST = {
+    "zalo": "Zalo.exe",
+    "discord": "Discord.exe",
+    "vscode": "Code.exe",
+    "chrome": "chrome.exe",
     "notepad": "notepad.exe",
-    "calc": "calc.exe",
-    "mspaint": "mspaint.exe",
-    "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-    "vscode": r"C:\Users\{user}\AppData\Local\Programs\Microsoft VS Code\Code.exe",
 }
 
 

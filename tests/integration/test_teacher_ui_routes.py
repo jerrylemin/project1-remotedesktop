@@ -3,6 +3,7 @@ from __future__ import annotations
 from apps.api.db import SessionLocal
 from apps.api.models import Machine
 from apps.api.services.audit import record_audit
+from apps.api.services.consent import create_consent_request, record_consent_decision
 
 
 async def test_admin_pages_render(api_client, admin_token: str) -> None:
@@ -65,6 +66,18 @@ async def test_power_requires_confirm_and_reason(api_client, admin_token: str) -
 
     missing_reason = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "restart", "confirm": True, "reason": ""})
     assert missing_reason.status_code == 400
+
+    async with SessionLocal() as db:
+        consent = await create_consent_request(
+            db,
+            machine_id="m1",
+            command_type="POWER_RESTART",
+            requested_by="1",
+            reason="demo restart",
+            ttl_seconds=60,
+        )
+        await record_consent_decision(db, consent.id, "approved", "agent:m1")
+        await db.commit()
 
     accepted = await api_client.post("/api/machines/m1/power", headers=headers, json={"action": "restart", "confirm": True, "reason": "demo restart"})
     assert accepted.status_code == 200

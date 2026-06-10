@@ -11,6 +11,13 @@ from shared.crypto import hash_secret, random_secret, verify_secret
 from shared.time_utils import utc_now
 
 
+DEMO_MACHINE_IDS = {"fake-machine-001", "LAB-PC-01", "LAB-PC-02", "HOME-PC-01"}
+
+
+def is_demo_machine(machine: Machine) -> bool:
+    return machine.machine_id in DEMO_MACHINE_IDS or machine.os.lower() == "fakeos demo"
+
+
 async def create_enroll_token(db: AsyncSession, created_by: int | None = None) -> str:
     token = random_secret(24)
     db.add(EnrollToken(id=str(uuid4()), token_hash=hash_secret(token), created_by=created_by))
@@ -47,13 +54,45 @@ async def enroll_machine(
     return machine, machine_secret
 
 
-async def list_machines(db: AsyncSession) -> list[Machine]:
+async def list_machines(db: AsyncSession, *, include_demo: bool = False) -> list[Machine]:
     result = await db.execute(select(Machine).order_by(Machine.hostname))
-    return list(result.scalars().all())
+    machines = list(result.scalars().all())
+    if include_demo:
+        return machines
+    return [machine for machine in machines if not is_demo_machine(machine)]
 
 
 async def get_machine(db: AsyncSession, machine_id: str) -> Machine | None:
     return await db.scalar(select(Machine).where(Machine.machine_id == machine_id))
+
+
+def hash_machine_secret(raw_secret: str) -> str:
+    return hash_secret(raw_secret)
+
+
+async def verify_machine_secret(db: AsyncSession, machine_id: str, raw_secret: str) -> bool:
+    if not machine_id or not raw_secret:
+        return False
+    machine = await db.scalar(select(Machine).where(Machine.machine_id == machine_id))
+    if machine is None or not machine.enabled:
+        return False
+    secret = await db.scalar(select(MachineSecret).where(MachineSecret.machine_id == machine_id))
+    return secret is not None and verify_secret(raw_secret, secret.secret_hash)
+
+
+async def require_valid_machine(db: AsyncSession, machine_id: str, raw_secret: str) -> Machine:
+    machine = await db.scalar(select(Machine).where(Machine.machine_id == machine_id))
+    if machine is None:
+        raise LookupError("unknown_machine")
+    if not machine.enabled:
+        raise PermissionError("machine_disabled")
+    secret = await db.scalar(select(MachineSecret).where(MachineSecret.machine_id == machine_id))
+    if not raw_secret or secret is None or not verify_secret(raw_secret, secret.secret_hash):
+        raise PermissionError("invalid_machine_secret")
+    machine.status = "online"
+    machine.last_seen = utc_now()
+    await db.flush()
+    return machine
 
 
 async def upsert_machine_status(

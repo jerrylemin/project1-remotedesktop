@@ -7,6 +7,7 @@ class TelepcWsClient {
     this.ws = null;
     this.role = "observer";
     this.roleWaiters = [];
+    this.resultWaiters = [];
   }
 
   async ticket() {
@@ -17,7 +18,9 @@ class TelepcWsClient {
 
   send(type, payload = {}) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) throw new Error("WebSocket is not connected");
-    this.ws.send(JSON.stringify({ type, msg_id: crypto.randomUUID(), ts: new Date().toISOString(), machine_id: this.machineId, session_id: null, payload }));
+    const msgId = crypto.randomUUID();
+    this.ws.send(JSON.stringify({ type, msg_id: msgId, ts: new Date().toISOString(), machine_id: this.machineId, session_id: null, payload }));
+    return msgId;
   }
 
   async connect({ control = false } = {}) {
@@ -86,11 +89,36 @@ class TelepcWsClient {
       this.roleWaiters = [];
     }
     if (msg.type === "frame" && (msg.payload?.jpeg_b64 || msg.payload?.data)) this.onFrame(msg.payload);
-    if (msg.type === "command_result" || msg.type === "error" || msg.type === "job_status") this.onResult(msg);
+    if (msg.type === "command_result" || msg.type === "error" || msg.type === "job_status") {
+      const waiter = this.resultWaiters.shift();
+      if (waiter) {
+        clearTimeout(waiter.timer);
+        waiter.resolve(msg);
+      }
+      this.onResult(msg);
+    }
   }
 
   sendCommand(command) {
     this.send("command", command);
+  }
+
+  sendCommandAwait(command, timeoutMs = 120000) {
+    return new Promise((resolve, reject) => {
+      const waiter = { resolve, reject, timer: null };
+      waiter.timer = setTimeout(() => {
+        this.resultWaiters = this.resultWaiters.filter(item => item !== waiter);
+        reject(new Error("Timed out waiting for agent response"));
+      }, timeoutMs);
+      this.resultWaiters.push(waiter);
+      try {
+        this.sendCommand(command);
+      } catch (error) {
+        clearTimeout(waiter.timer);
+        this.resultWaiters = this.resultWaiters.filter(item => item !== waiter);
+        reject(error);
+      }
+    });
   }
 
   close() {

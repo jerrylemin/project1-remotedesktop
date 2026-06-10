@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 
 from apps.api.config import get_settings
 from apps.api.models import User
@@ -35,7 +35,7 @@ def create_ws_ticket(user: User) -> WsTicket:
         user_id=user.id,
         username=user.username,
         permissions=_permissions_for(user),
-        expires_at=datetime.now(UTC) + timedelta(seconds=ttl),
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=ttl),
     )
     _tickets[ticket.token] = ticket
     return ticket
@@ -43,7 +43,7 @@ def create_ws_ticket(user: User) -> WsTicket:
 
 def validate_ws_ticket(token: str, *, consume: bool = True) -> WsTicket | None:
     ticket = _tickets.get(token)
-    if ticket is None or ticket.used or ticket.expires_at <= datetime.now(UTC):
+    if ticket is None or ticket.used or ticket.expires_at <= datetime.now(timezone.utc):
         return None
     if consume:
         ticket.used = True

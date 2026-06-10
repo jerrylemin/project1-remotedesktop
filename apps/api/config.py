@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     max_upload_size: int = 10 * 1024 * 1024
     allowed_upload_ext: str = ".txt,.csv,.json,.py,.ps1,.png,.jpg,.jpeg,.pdf,.zip"
     app_allowlist: str = "notepad,calc,python,pwsh,powershell,cmd,bash"
+    process_start_allowlist: str = "notepad,calculator,vscode,browser"
     relay_url: str = "ws://localhost:8001"
     api_url: str = "http://localhost:8000"
     cookie_name: str = "telepc_session"
@@ -31,6 +32,10 @@ class Settings(BaseSettings):
     @property
     def allowed_apps(self) -> set[str]:
         return {item.strip().lower() for item in self.app_allowlist.split(",") if item.strip()}
+
+    @property
+    def allowed_process_starts(self) -> set[str]:
+        return {item.strip().lower() for item in self.process_start_allowlist.split(",") if item.strip()}
 
 
 @lru_cache

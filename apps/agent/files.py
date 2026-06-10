@@ -4,7 +4,7 @@ import base64
 import hashlib
 from pathlib import Path
 
-from apps.agent.sandbox import SandboxError, job_sandbox, safe_write
+from apps.agent.sandbox import SandboxError, safe_write
 
 
 def write_dispatched_file(root: Path, machine_id: str, job_id: str, filename: str, content_b64: str) -> str:

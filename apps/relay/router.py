@@ -57,7 +57,7 @@ async def agent_ws(websocket: WebSocket) -> None:
             return
         machine_id = first.machine_id or first.payload.get("machine_id")
         machine_secret = first.payload.get("machine_secret", "")
-        if not validate_agent_secret(machine_id or "", machine_secret):
+        if not await validate_agent_secret(machine_id or "", machine_secret):
             await websocket.send_json(error_message("invalid machine secret", machine_id=machine_id))
             return
         machine_info = first.payload.get("machine_info") or {}
