@@ -58,6 +58,33 @@ async def test_protected_process_stop_is_denied_and_audited(api_client, admin_to
     assert audit.json()[0]["summary"].startswith("Protected process stop denied")
 
 
+async def test_process_stop_requires_approved_consent(api_client, admin_token: str) -> None:
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with SessionLocal() as db:
+        db.add(Machine(machine_id="m1", hostname="pc1", os="Windows", username="student", status="online"))
+        await db.commit()
+
+    blocked = await api_client.post("/api/machines/m1/processes/500/stop", headers=headers, json={"name": "notepad.exe", "confirm": True})
+    assert blocked.status_code == 403
+    assert "consent" in blocked.json()["detail"]
+
+    async with SessionLocal() as db:
+        consent = await create_consent_request(
+            db,
+            machine_id="m1",
+            command_type="PROCESS_KILL",
+            requested_by="1",
+            reason="stop notepad",
+            ttl_seconds=60,
+        )
+        await record_consent_decision(db, consent.id, "approved", "agent:m1")
+        await db.commit()
+
+    accepted = await api_client.post("/api/machines/m1/processes/500/stop", headers=headers, json={"name": "notepad.exe", "confirm": True})
+    assert accepted.status_code == 200
+    assert accepted.json()["command"]["action"] == "stop_process"
+
+
 async def test_power_requires_confirm_and_reason(api_client, admin_token: str) -> None:
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with SessionLocal() as db:

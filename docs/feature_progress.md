@@ -1,5 +1,14 @@
 # Feature Progress
 
+## Strict Consent Closure Slice (2026-06-13)
+
+- Added `PROCESS_KILL` to the sensitive consent policy and enforced it on process stop routes.
+- Added `WEBCAM_STOP` to the sensitive consent policy and enforced it on webcam stop routes.
+- Machine detail UI now forwards local consent requests before process stop and webcam stop actions.
+- Production dashboard and machines page empty-state copy now points to enrolled real client machines and `TelePCClient.exe`.
+- Added regression tests for process stop consent and webcam stop consent.
+- Verification: compileall passed, Ruff passed, pytest passed with 120 tests, EXE packaging passed, EXE `--help` passed, and HTTP smoke passed.
+
 ## Strict Prompt Packaging Slice (2026-06-01)
 
 - Added `scripts/package_client_exe.py` with a `package_client_exe() -> Path` helper that invokes PyInstaller in one-file mode.

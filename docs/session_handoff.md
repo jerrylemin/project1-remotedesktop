@@ -1,5 +1,40 @@
 # Session Handoff
 
+## Strict Consent Closure Slice (2026-06-13)
+
+Current status:
+
+- Phase 0 context was refreshed for the strict TelePC prompt.
+- Graphify was refreshed with `graphify update .`; report now shows 1190 nodes, 3419 edges, and 92 communities.
+- Added durable consent enforcement for process kill with `PROCESS_KILL`.
+- Added durable consent enforcement for webcam stop with `WEBCAM_STOP`.
+- Machine detail UI now requests local consent before process stop and webcam stop.
+- Dashboard and machines production empty states now instruct admins to enroll/run `TelePCClient.exe`, not fake demo agents.
+- Verification passed:
+  - `python -m compileall .`
+  - `ruff check .`
+  - `python -m pytest -q`: 120 passed
+  - `.\scripts\build_client_exe.ps1`
+  - `.\dist\TelePCClient.exe --help`
+  - HTTP smoke on ports 8765/8766: `/health` 200, `/admin/login` 200, unauthenticated `/api/machines` 401
+
+Remaining strict-compliance blocker:
+
+- Physical Windows validation of the rebuilt EXE, native popup focus/topmost behavior, real `X:\Remote` discovery, and real built-in/USB webcam enumeration is still pending.
+- Keyboard handling remains intentionally scoped to visible lab input forwarding rather than stealth/global keylogging.
+
+First command next:
+
+```powershell
+python -m pytest -q
+```
+
+Files to read first next time:
+
+- `docs/final_compliance_report.md`
+- `docs/security_consent_audit.md`
+- `docs/telepc_requirement_matrix.md`
+
 ## Strict prompt packaging slice (2026-06-01)
 
 Current status:

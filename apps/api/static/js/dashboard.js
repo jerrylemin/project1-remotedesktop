@@ -21,7 +21,7 @@ function renderMachines() {
       <td>${escapeHtml(m.os)}</td>
       <td>${statusPill(m.status)}</td>
       <td><a class="btn" href="/admin/machines/${encodeURIComponent(m.machine_id)}">Manage</a></td>
-    </tr>`).join("") || `<tr><td class="empty-row" colspan="5">No machines yet. Run <code>python scripts/run_3_fake_agents.py</code>.</td></tr>`;
+    </tr>`).join("") || `<tr><td class="empty-row" colspan="5">No connected client machines. Create an enroll token, build <code>TelePCClient.exe</code>, and run it on an authorized lab machine.</td></tr>`;
 }
 
 function renderAudit(rows) {

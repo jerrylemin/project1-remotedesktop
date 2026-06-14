@@ -202,6 +202,7 @@ async def stop_process(
         await record_audit(db, event_type="acl_denied", summary=f"Protected process stop denied: {body.name}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"pid": pid, "process": body.name})
         await db.commit()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="protected process cannot be stopped")
+    await require_consent_or_403(db, machine_id, "PROCESS_KILL", user)
     await record_audit(db, event_type="process_stopped", summary=f"Stop process requested: {pid}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"pid": pid, "process": body.name, "confirm": body.confirm})
     await db.commit()
     return command_response("stop_process", pid=pid, name=body.name, confirm=body.confirm)
@@ -300,6 +301,11 @@ async def webcam_devices(machine_id: str, db: AsyncSession = Depends(get_db), us
 async def webcam_stop(machine_id: str, body: WebcamActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "webcam")
+    await require_consent_or_403(db, machine_id, "WEBCAM_STOP", user)
+    if not body.consent:
+        await record_audit(db, event_type="acl_denied", summary="Webcam stop denied without consent", actor_type="admin", actor_user_id=user.id, machine_id=machine_id)
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="webcam stop requires consent")
     await record_audit(db, event_type="webcam_stopped", summary="Webcam stop requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"consent": body.consent})
     await db.commit()
     return command_response("webcam", start=False, consent=body.consent)

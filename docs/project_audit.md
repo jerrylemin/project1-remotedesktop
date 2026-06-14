@@ -1,5 +1,22 @@
 # TelePC project audit
 
+## 2026-06-13 strict consent audit
+
+Findings fixed in this pass:
+
+- Process kill was audited and protected-process guarded, but it did not require a matching approved consent record. Fixed with `PROCESS_KILL`.
+- Webcam stop was audited, but it did not require a matching approved consent record. Fixed with `WEBCAM_STOP`.
+- Production empty-state UI copy still referenced fake demo agents. Fixed to point admins to enrolled real clients and `TelePCClient.exe`.
+
+Verification:
+
+- `python -m compileall .`: passed.
+- `ruff check .`: passed.
+- `python -m pytest -q`: passed, 120 tests.
+- `.\scripts\build_client_exe.ps1`: passed.
+- `.\dist\TelePCClient.exe --help`: passed.
+- HTTP smoke: `/health` 200, `/admin/login` 200, unauthenticated `/api/machines` 401.
+
 Date: 2026-05-30
 
 ## Starting audit summary

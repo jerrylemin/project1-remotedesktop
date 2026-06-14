@@ -2,6 +2,36 @@
 
 Date: 2026-05-30
 
+## Strict consent closure slice, 2026-06-13
+
+Phase 0 was refreshed for the pasted strict prompt:
+
+- `~/.codex/AGENTS.md`, `~/.codex/config.toml`, repo `AGENTS.md`, README, Graphify report, and durable docs were read.
+- `graphify update .` was run; output was refreshed to 1190 nodes, 3419 edges, and 92 communities.
+- Baseline verification before edits passed: `python -m compileall .`, `ruff check .`, and `python -m pytest -q` with 118 tests.
+
+Decision table for this slice:
+
+| Condition | Observed state | Decision |
+|---|---|---|
+| Process kill route lacked durable local consent gate | `POST /api/machines/{id}/processes/{pid}/stop` audited and checked protected names but did not call `require_active_consent()`. | Add `PROCESS_KILL` consent gate before returning the relay command. |
+| Webcam stop route lacked durable local consent gate | `POST /api/machines/{id}/webcam/stop` audited but did not call `require_active_consent()`. | Add `WEBCAM_STOP` consent gate and reject missing local consent flag. |
+| UI could send process stop without local popup request | Process table action called the API after confirm modal only. | Add `requestLocalConsent("PROCESS_KILL", ...)` before the API command. |
+| UI could send webcam stop without local popup request | Webcam stop button called the API directly. | Add `requestLocalConsent("WEBCAM_STOP", ...)` before the API command. |
+| Production empty states referenced fake agents | Dashboard/machines copy pointed to fake demo startup. | Replace with real enrolled client and EXE instructions. |
+
+Verification:
+
+| Command | Result |
+|---|---|
+| Focused new tests | Passed, 2 tests |
+| `python -m compileall .` | Passed |
+| `ruff check .` | Passed |
+| `python -m pytest -q` | Passed, 120 tests |
+| `.\scripts\build_client_exe.ps1` | Passed, built `dist\TelePCClient.exe` |
+| `.\dist\TelePCClient.exe --help` | Passed |
+| HTTP smoke | Passed: `/health` 200, `/admin/login` 200, unauthenticated `/api/machines` 401 |
+
 ## Strict prompt continuation, 2026-06-01
 
 Phase 0 was rerun under the stricter pasted prompt.

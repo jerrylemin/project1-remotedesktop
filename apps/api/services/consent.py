@@ -11,12 +11,18 @@ from apps.api.services.audit import record_audit
 from shared.time_utils import utc_now
 
 SENSITIVE_COMMANDS = {
+    "APPLICATION_START",
+    "APPLICATION_STOP",
+    "PROCESS_KILL",
     "SCREENSHOT",
     "LIVE_SCREEN",
     "KEY_INPUT",
     "KEYLOGGER_START",
+    "KEYLOGGER_STOP",
+    "FILE_LIST",
     "FILE_DOWNLOAD",
     "WEBCAM_START",
+    "WEBCAM_STOP",
     "POWER_RESTART",
     "POWER_SHUTDOWN",
 }

@@ -2,6 +2,15 @@
 
 Date: 2026-05-30
 
+## Strict consent update, 2026-06-13
+
+| Requirement | Current status | Evidence |
+|---|---|---|
+| Process kill requires local consent | PASS | `apps/api/routers/machines.py` now requires `PROCESS_KILL`; UI calls `requestLocalConsent("PROCESS_KILL", ...)`; `tests/integration/test_teacher_ui_routes.py::test_process_stop_requires_approved_consent`. |
+| Webcam stop requires local consent | PASS | `apps/api/routers/machines.py` now requires `WEBCAM_STOP`; UI calls `requestLocalConsent("WEBCAM_STOP", ...)`; `tests/test_webcam_devices_api.py::test_webcam_stop_requires_approved_consent`. |
+| Production UI avoids fake-agent empty-state instructions | PASS | Dashboard and machines page now instruct admins to enroll/run `TelePCClient.exe`, not fake demo agents. |
+| Full automated gate | PASS | `python -m compileall .`, `ruff check .`, `python -m pytest -q` with 120 tests, `.\scripts\build_client_exe.ps1`, EXE `--help`, and HTTP smoke all passed. |
+
 ## Strict prompt delta, 2026-06-01
 
 | Requirement | Current status | Evidence |

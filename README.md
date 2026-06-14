@@ -1,6 +1,6 @@
 # TelePC Remote Desktop Lab
 
-TelePC is a lab/demo remote desktop control system for authorized machines. It uses a FastAPI admin/API server, a WebSocket relay, and a consent-visible Python agent. Fake mode is the default demo path and does not control the local machine.
+TelePC is a lab remote desktop control system for authorized machines. It uses a FastAPI admin/API server, a WebSocket relay, and a consent-visible Python client agent.
 
 ## Safety Scope
 
@@ -11,6 +11,12 @@ TelePC is a lab/demo remote desktop control system for authorized machines. It u
 - Files move through the sandbox only; whole-drive browsing and path traversal are blocked.
 - Protected system processes such as `lsass.exe`, `winlogon.exe`, `csrss.exe`, `services.exe`, `system`, and `registry` cannot be stopped through the UI/API.
 
+## Strict Lab Control Path
+
+Production machine lists show enrolled connected clients only. Build `dist\TelePCClient.exe`, create an enroll token, and run the client on an authorized lab machine to connect it through the relay.
+
+Every control action that affects the controlled machine must pass authentication, authorization, machine access checks, local consent, and audit logging. Process kill and webcam stop are explicitly consent-gated, along with application control, screen capture/live screen, file listing/download, webcam start, keyboard lab input, and restart/shutdown.
+
 ## Teacher Prototype UI
 
 The admin UI now applies the teacher prototype as real FastAPI/Jinja pages instead of static HTML:
@@ -18,7 +24,7 @@ The admin UI now applies the teacher prototype as real FastAPI/Jinja pages inste
 - `Topic01_Prototype.html` -> bright dashboard, machine list, security/audit navigation.
 - `remote_control_web_prototype.html` -> dark per-machine remote shell with Applications, Processes, Screen, Files, Webcam, Keyboard Demo, Power, and Audit Logs modules.
 
-The UI is split across `apps/api/templates`, `apps/api/templates/partials`, `apps/api/static/css`, and `apps/api/static/js`, and reads data from the existing API, relay WebSocket, fake agent, and audit/file/job services.
+The UI is split across `apps/api/templates`, `apps/api/templates/partials`, `apps/api/static/css`, and `apps/api/static/js`, and reads data from the existing API, relay WebSocket, connected client agents, and audit/file/job services.
 
 ## Setup
 
@@ -43,7 +49,7 @@ Default demo admin:
 
 ## Run
 
-Fast demo startup, one terminal. By default this listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, seeds the admin, starts the API, starts the relay, and starts three fake demo agents:
+Production-safe startup, one terminal. By default this listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, seeds the admin, starts the API, and starts the relay. It does not start demo agents:
 
 ```powershell
 python main.py
@@ -57,23 +63,16 @@ py -3.12 main.py
 
 Then open `http://localhost:8000/admin/dashboard`.
 
-For a main/controller machine that will control separate test machines, run:
-
-```powershell
-py -3.12 main.py --no-agents
-```
-
 The console prints the LAN URL and a ready-to-copy `client.py` command for test machines. Press `Ctrl+C` in that terminal to stop everything.
 If the API or relay is already running on the selected ports, `main.py` reuses it and starts only the missing pieces.
 
 Manual startup, separate terminals:
 
-Open three terminals:
+Open two terminals:
 
 ```powershell
 python scripts/run_api.py
 python scripts/run_relay.py
-python scripts/run_fake_agent.py
 ```
 
 Windows launcher equivalent:
@@ -81,31 +80,18 @@ Windows launcher equivalent:
 ```powershell
 py -3.12 scripts/run_api.py
 py -3.12 scripts/run_relay.py
-py -3.12 scripts/run_fake_agent.py
 ```
 
 Then open `http://localhost:8000/admin/dashboard`.
 
-Run three fake agents for the multi-machine demo:
-
-```powershell
-python scripts/run_3_fake_agents.py
-```
-
-or:
-
-```powershell
-py -3.12 scripts/run_3_fake_agents.py
-```
-
-This connects `LAB-PC-01`, `LAB-PC-02`, and `HOME-PC-01` through the relay.
+Use enrolled real clients for the machine list. The production UI shows only connected, enrolled client machines.
 
 ## Connect a Test Machine
 
 On the main/controller machine, run:
 
 ```powershell
-py -3.12 main.py --no-agents
+py -3.12 main.py
 ```
 
 `main.py` listens on the LAN and tries to open Windows Firewall for TCP `8000` and `8001`. If Windows asks for permission, allow Python on the private network. The main console prints the LAN IP. You can also find it manually:
@@ -124,12 +110,6 @@ py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-REAL-01
 
 If the main machine is still starting, `client.py` waits and retries instead of exiting immediately.
 
-For fake/demo mode on a test machine:
-
-```powershell
-py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-TEST-01 --mode fake
-```
-
 Keep the client console visible and open. The machine will appear in `/admin/machines`; click Manage from the main machine to control it. The real client remains consent-visible, uses sandbox-only file operations, and keeps power actions demo-safe.
 
 ## Auth Flow
@@ -138,16 +118,16 @@ Admin login sets an HttpOnly session cookie. Browser JavaScript does not store t
 
 ## Demo Flow
 
-1. Start API, relay, and `python scripts/run_3_fake_agents.py`.
+1. Start API and relay with `python main.py`.
 2. Log in at `/admin/login` with `admin` / `admin123`.
-3. Open `/admin/dashboard` and review online machines, active sessions, commands today, alerts, and recent audit logs.
-4. Open `/admin/machines`, search/filter machines, then click Manage.
-5. Claim control in `/admin/machines/{machine_id}`.
-6. Use Screen to start live frame viewing or capture/download the latest image.
-7. Use Processes and Applications; protected processes are blocked and audited.
-8. Upload and dispatch a sandbox file, then review sandbox files and job history.
-9. Start Webcam only after checking the consent box.
-10. Use Power controls with confirmation and a reason, then review per-machine Audit Logs.
+3. Build and run `TelePCClient.exe` or `client.py` on an authorized lab machine.
+4. Open `/admin/dashboard` and review online machines, active sessions, commands today, alerts, and recent audit logs.
+5. Open `/admin/machines`, search/filter machines, then click Manage.
+6. Claim control in `/admin/machines/{machine_id}`.
+7. Use Screen to start live frame viewing or capture/download the latest image after local consent.
+8. Use Processes and Applications; protected processes are blocked and process kill requires local consent.
+9. Browse only whitelisted remote folders or dispatch sandbox files, then review audit/job history.
+10. Start or stop Webcam only after local consent, then review per-machine Audit Logs.
 
 ## Windows Real Agent
 
@@ -183,10 +163,10 @@ py -3.12 -m compileall .
 py -3.12 -m pytest -q
 ```
 
-Latest local result with Python 3.12: `42 passed`.
+Latest local result with Python 3.11.9: `120 passed`.
 ## Real Machine Completion Pass
 
-### Quick Start (Fake)
+### Quick Start
 
 ```powershell
 py -3.12 -m pip install -r requirements.txt
@@ -194,7 +174,7 @@ py -3.12 scripts/create_admin.py
 py -3.12 main.py
 ```
 
-Open `http://localhost:8000/admin/login`, sign in with the seeded admin, then use the fake lab agents for screen frames, process/app lists, file sandbox, webcam consent flow, and demo-safe power actions.
+Open `http://localhost:8000/admin/login`, sign in with the seeded admin, then connect an authorized client machine with `client.py` or `TelePCClient.exe`.
 
 ### Real Machine Setup
 
@@ -224,9 +204,9 @@ Test-NetConnection <SERVER_IP> -Port 8001
 
 | Capability | Package | Safe default |
 | --- | --- | --- |
-| Screen capture | `mss` or `Pillow` ImageGrab | Fake JPEG frames |
-| Processes/applications | `psutil` | Fake grouped rows |
-| Webcam | `opencv-python` | Consent-gated fake frame/status |
+| Screen capture | `mss` or `Pillow` ImageGrab | Clear unavailable error if missing in real mode |
+| Processes/applications | `psutil` | Clear unavailable error if missing in real mode |
+| Webcam | `opencv-python` | Clear unavailable error if missing in real mode |
 | Real input | `pyautogui` | Disabled unless `TELEPC_ENABLE_REAL_INPUT=true` |
 | Real power | Windows built-ins | Demo-safe unless `TELEPC_ENABLE_REAL_POWER=true` |
 
@@ -246,7 +226,7 @@ $env:TELEPC_WEBCAM_WIDTH="640"
 $env:TELEPC_WEBCAM_HEIGHT="360"
 ```
 
-Lab-real mode is deliberately not the default. Plain `python client.py` runs demo-safe fake providers. To enable real input and real power on an authorized lab machine, use the explicit helper:
+Real input and real power are deliberately not enabled by default. To enable them on an authorized lab machine, use the explicit helper:
 
 ```powershell
 .\scripts\run_lab_real_client.ps1 --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>

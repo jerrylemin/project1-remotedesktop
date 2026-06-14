@@ -1,5 +1,34 @@
 # TelePC final compliance report
 
+## 2026-06-13 consent hardening addendum
+
+Verdict for this pass: STRICT-CONSENT IMPROVED, still PARTIAL for a literal 10/10 until physical Windows validation is completed.
+
+Changes made:
+
+- `PROCESS_KILL` is now a first-class sensitive action and is blocked unless the requesting user has a matching approved, unexpired local consent record.
+- `WEBCAM_STOP` is now a first-class sensitive action and is blocked unless the requesting user has a matching approved, unexpired local consent record.
+- The machine detail UI now requests local popup consent before process stop and webcam stop commands.
+- Production dashboard/machine empty states no longer tell admins to start fake demo agents; they point to enrolled real client machines and `TelePCClient.exe`.
+
+Verification run on Python 3.11.9:
+
+| Command | Exit code | Result |
+|---|---:|---|
+| `python -m compileall .` | 0 | Passed |
+| `ruff check .` | 0 | Passed |
+| `python -m pytest -q` | 0 | 120 passed |
+| `.\scripts\build_client_exe.ps1` | 0 | Built `dist\TelePCClient.exe` |
+| `.\dist\TelePCClient.exe --help` | 0 | Passed |
+| HTTP smoke `/health` | 0 | 200 OK |
+| HTTP smoke `/admin/login` | 0 | 200 OK |
+| HTTP smoke `/api/machines` without login | 0 | 401 Unauthorized |
+
+Known limitations remain:
+
+- Physical Windows lab validation is still required for the rebuilt EXE, native popup focus behavior, real remote folder discovery, and built-in/USB webcam enumeration.
+- The project intentionally keeps keyboard handling scoped to visible lab input forwarding rather than implementing stealth or global credential-capturing keylogging.
+
 ## 2026-06-01 strict prompt re-audit
 
 Verdict for the stricter 10/10 prompt: PARTIAL.
@@ -111,7 +140,7 @@ ruff check .
 | Command | Exit code | Result |
 |---|---:|---|
 | `python -m compileall .` | 0 | Passed |
-| `python -m pytest -q` | 0 | 118 passed |
+| `python -m pytest -q` | 0 | 120 passed in the 2026-06-13 pass |
 | `ruff check .` | 0 | Passed |
 | `.\scripts\build_client_exe.ps1` | 0 | Built `dist\TelePCClient.exe` |
 | `.\dist\TelePCClient.exe --help` | 0 | Passed |

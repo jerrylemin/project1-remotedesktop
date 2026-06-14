@@ -269,6 +269,7 @@ document.getElementById("process-table").addEventListener("click", async event =
   if (!button) return;
   const decision = await openConfirm("Stop process", `Stop PID ${button.dataset.pid} (${button.dataset.process})?`);
   if (!decision.ok) return;
+  await requestLocalConsent("PROCESS_KILL", `Stop PID ${button.dataset.pid} (${button.dataset.process})`);
   await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/processes/${encodeURIComponent(button.dataset.pid)}/stop`, { method: "POST", body: JSON.stringify({ name: button.dataset.process, confirm: decision.confirm }) });
 });
 
@@ -340,7 +341,12 @@ document.getElementById("webcam-start").addEventListener("click", async () => {
   }
 });
 document.getElementById("webcam-stop").addEventListener("click", async () => {
-  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify({ consent: true }) }).catch(alert);
+  try {
+    await requestLocalConsent("WEBCAM_STOP", "Stop webcam preview");
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify({ consent: true }) });
+  } catch (error) {
+    alert(error.message || error);
+  }
 });
 document.getElementById("webcam-snapshot").addEventListener("click", () => {
   try {

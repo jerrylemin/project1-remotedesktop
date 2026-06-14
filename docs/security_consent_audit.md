@@ -2,6 +2,32 @@
 
 Date: 2026-05-30
 
+## 2026-06-13 update
+
+The consent policy now explicitly includes:
+
+- `APPLICATION_START`
+- `APPLICATION_STOP`
+- `PROCESS_KILL`
+- `SCREENSHOT`
+- `LIVE_SCREEN`
+- `KEY_INPUT`
+- `KEYLOGGER_START`
+- `KEYLOGGER_STOP`
+- `FILE_LIST`
+- `FILE_DOWNLOAD`
+- `WEBCAM_START`
+- `WEBCAM_STOP`
+- `POWER_RESTART`
+- `POWER_SHUTDOWN`
+
+This pass closed two route gaps:
+
+- Process stop now calls `require_active_consent()` with `PROCESS_KILL` before returning the relay command.
+- Webcam stop now calls `require_active_consent()` with `WEBCAM_STOP` and rejects requests without the local consent flag.
+
+The browser UI now creates and forwards local consent requests for process stop and webcam stop before sending those commands. Regression coverage was added for both paths, and the full verification gate passed with 120 tests.
+
 ## Security posture at start
 
 - Safe demo intent is documented.
@@ -19,8 +45,12 @@ Sensitive commands must be blocked unless a matching approved, unexpired consent
 - `LIVE_SCREEN`
 - `KEY_INPUT`
 - `KEYLOGGER_START`
+- `KEYLOGGER_STOP`
+- `PROCESS_KILL`
+- `FILE_LIST`
 - `FILE_DOWNLOAD`
 - `WEBCAM_START`
+- `WEBCAM_STOP`
 - `POWER_RESTART`
 - `POWER_SHUTDOWN`
 

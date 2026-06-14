@@ -2,6 +2,20 @@
 
 Date: 2026-05-30
 
+## Strict consent pass, 2026-06-13
+
+- [x] Process kill requires approved local consent before the relay command is returned.
+- [x] Webcam stop requires approved local consent before the relay command is returned.
+- [x] UI requests local popup consent before process stop.
+- [x] UI requests local popup consent before webcam stop.
+- [x] Production empty states point to enrolled real clients and `TelePCClient.exe`, not fake demo agents.
+- [x] `python -m compileall .` passed.
+- [x] `ruff check .` passed.
+- [x] `python -m pytest -q` passed with 120 tests.
+- [x] `.\scripts\build_client_exe.ps1` built `dist\TelePCClient.exe`.
+- [x] `.\dist\TelePCClient.exe --help` passed.
+- [x] HTTP smoke passed: `/health` 200, `/admin/login` 200, unauthenticated `/api/machines` 401.
+
 ## Strict prompt re-audit, 2026-06-01
 
 - [x] Compile, tests, and lint pass locally.
