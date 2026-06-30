@@ -37,7 +37,7 @@
       <button class="module-link" data-panel="screen">Screen</button>
       <button class="module-link" data-panel="files">Files</button>
       <button class="module-link" data-panel="webcam">Webcam</button>
-      <button class="module-link" data-panel="keyboard">Keyboard Demo</button>
+      <button class="module-link" data-panel="keyboard">Keylogger Lab</button>
       <button class="module-link danger-link" data-panel="power">Power</button>
       <button class="module-link" data-panel="audit">Audit Logs</button>
     </aside>
@@ -86,7 +86,11 @@
       </section>
 
       <section id="panel-files" class="remote-panel">
-        <div class="panel-head"><h2>File Sandbox</h2><span>Sandbox only, no whole-drive browsing</span></div>
+        <div class="panel-head"><h2>Files</h2><span>Remote whitelist and sandbox files</span></div>
+        <h3>Remote whitelist folders</h3>
+        <div class="toolbar"><button id="load-remote-roots" class="btn secondary">Load Remote Folders</button><button id="remote-files-up" class="btn ghost" disabled>Up</button></div>
+        <div id="remote-root-list" class="stack-list"></div>
+        <div id="remote-files-output" class="stack-list"></div>
         <div class="toolbar"><input id="file-input" type="file" accept=".txt,.csv,.json,.py,.ps1,.png,.jpg,.jpeg,.pdf,.zip"><button id="upload-file" class="btn">Upload</button><button id="refresh-files" class="btn secondary">Refresh</button></div>
         <p class="sandbox-note">Sandbox root: <code>sandbox_root/&lt;machine_id&gt;/&lt;job_id&gt;</code>. Path traversal is rejected by the agent.</p>
         <h3>Artifacts dispatched to this machine</h3>
@@ -98,17 +102,16 @@
       <section id="panel-webcam" class="remote-panel">
         <div class="panel-head"><h2>Webcam</h2><span id="webcam-status">camera off</span></div>
         <div class="webcam-preview" id="webcam-preview">Camera preview starts only after consent.</div>
-        <label>Device <select id="webcam-device"><option value="camera-0">Camera 0</option></select></label>
+        <label>Device <select id="webcam-device"></select></label>
         <label class="check-line"><input id="webcam-consent" type="checkbox"> Consent was confirmed on the client machine.</label>
         <div class="toolbar"><button id="webcam-start" class="btn">Start Webcam</button><button id="webcam-stop" class="btn ghost">Stop Webcam</button><button id="webcam-snapshot" class="btn secondary">Snapshot</button></div>
         <div class="consent-box">Webcam requests require explicit consent and are logged per machine.</div>
       </section>
 
       <section id="panel-keyboard" class="remote-panel">
-        <div class="panel-head"><h2>Keyboard Demo</h2><span id="keyboard-state">stopped</span></div>
-        <div class="consent-box">Real keyboard input is sent only from this box after Claim Control and requires TELEPC_ENABLE_REAL_INPUT=true on the agent. It does not capture global system keystrokes or store typed characters.</div>
-        <textarea id="keyboard-input" placeholder="Click Start Real Input, then type here to send keys to the controlled machine"></textarea>
-        <div class="toolbar"><button id="keyboard-toggle" class="btn">Start Real Input</button><button id="keyboard-clear" class="btn ghost">Clear</button><button id="keyboard-export" class="btn secondary">Export</button></div>
+        <div class="panel-head"><h2>Keylogger Lab Module</h2><span id="keyboard-state">stopped</span></div>
+        <div class="consent-box">Keyboard capture starts only after a local popup is approved on the controlled machine, auto-stops after a short TTL, stays in memory, and redacts events from sensitive windows.</div>
+        <div class="toolbar"><input id="keylogger-ttl" type="number" min="1" max="300" value="60" aria-label="Capture TTL seconds"><button id="keyboard-toggle" class="btn">Start Key Capture</button><button id="keyboard-clear" class="btn ghost">Clear</button><button id="keyboard-export" class="btn secondary">Export</button></div>
         <div id="keyboard-feed" class="key-feed"></div>
       </section>
 

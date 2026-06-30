@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from apps.relay.api_client import active_control_session, release_control_session, update_machine_status, validate_ws_ticket
@@ -28,6 +30,11 @@ CONTROL_REQUIRED_ACTIONS = {
     "webcam_start",
     "webcam_stop",
     "webcam_snapshot",
+    "webcam_devices",
+    "keylogger_start",
+    "keylogger_stop",
+    "keylogger_events",
+    "keylogger_export",
     "power",
     "power_restart",
     "power_shutdown",
@@ -61,6 +68,9 @@ async def agent_ws(websocket: WebSocket) -> None:
             await websocket.send_json(error_message("invalid machine secret", machine_id=machine_id))
             return
         machine_info = first.payload.get("machine_info") or {}
+        if machine_info.get("os") == "FakeOS Demo" and os.getenv("TELEPC_ALLOW_DEMO", "false").lower() not in {"1", "true", "yes"}:
+            await websocket.send_json(error_message("demo agents disabled", machine_id=machine_id))
+            return
         await registry.register_agent(machine_id, websocket)
         await update_machine_status(machine_id, "online", machine_info)
         await websocket.send_json(make_envelope("ack", machine_id=machine_id, payload={"role": "agent"}))

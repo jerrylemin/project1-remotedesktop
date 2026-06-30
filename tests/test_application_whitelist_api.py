@@ -44,6 +44,7 @@ async def test_start_whitelisted_application_ignores_raw_command(api_client, adm
             requested_by="1",
             reason="start chrome",
             ttl_seconds=60,
+            command_payload={"name": "chrome", "confirm": False},
         )
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()

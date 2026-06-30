@@ -33,4 +33,8 @@ async def init_db() -> None:
             column_names = {row[1] for row in columns}
             if "enabled" not in column_names:
                 await conn.execute(text("ALTER TABLE machines ADD COLUMN enabled BOOLEAN NOT NULL DEFAULT 1"))
+            consent_columns = await conn.execute(text("PRAGMA table_info(consent_requests)"))
+            consent_column_names = {row[1] for row in consent_columns}
+            if "payload_hash" not in consent_column_names:
+                await conn.execute(text("ALTER TABLE consent_requests ADD COLUMN payload_hash VARCHAR(64)"))
 

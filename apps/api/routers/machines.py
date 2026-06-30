@@ -20,6 +20,8 @@ from apps.api.schemas import (
     FileDispatchIn,
     FileGetIn,
     JobHistoryOut,
+    KeyloggerSessionIn,
+    KeyloggerStartIn,
     MachineCommandOut,
     MachineOut,
     PowerActionIn,
@@ -76,9 +78,15 @@ async def require_machine_exists(db: AsyncSession, machine_id: str) -> None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="machine not found")
 
 
-async def require_consent_or_403(db: AsyncSession, machine_id: str, command_type: str, user: User) -> None:
+async def require_consent_or_403(
+    db: AsyncSession,
+    machine_id: str,
+    command_type: str,
+    user: User,
+    command_payload: dict | None = None,
+) -> None:
     try:
-        await require_active_consent(db, machine_id, command_type, str(user.id))
+        await require_active_consent(db, machine_id, command_type, str(user.id), command_payload)
     except PermissionError as exc:
         await db.commit()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
@@ -153,7 +161,7 @@ async def start_application(
         )
         await db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="application not in whitelist")
-    await require_consent_or_403(db, machine_id, "APPLICATION_START", user)
+    await require_consent_or_403(db, machine_id, "APPLICATION_START", user, {"name": body.name, "confirm": body.confirm})
     await record_audit(db, event_type="application_started", summary=f"Start application requested: {app_key}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"app_key": app_key})
     await db.commit()
     return command_response("start_application", app_key=app_key, name=app_key, confirm=body.confirm)
@@ -181,7 +189,7 @@ async def stop_application(
         )
         await db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="application not in whitelist")
-    await require_consent_or_403(db, machine_id, "APPLICATION_STOP", user)
+    await require_consent_or_403(db, machine_id, "APPLICATION_STOP", user, {"name": body.name, "confirm": body.confirm})
     await record_audit(db, event_type="application_stopped", summary=f"Stop application requested: {app_key}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"app_key": app_key, "confirm": body.confirm})
     await db.commit()
     return command_response("stop_application", name=app_key, confirm=body.confirm)
@@ -202,7 +210,7 @@ async def stop_process(
         await record_audit(db, event_type="acl_denied", summary=f"Protected process stop denied: {body.name}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"pid": pid, "process": body.name})
         await db.commit()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="protected process cannot be stopped")
-    await require_consent_or_403(db, machine_id, "PROCESS_KILL", user)
+    await require_consent_or_403(db, machine_id, "PROCESS_KILL", user, {"pid": pid, "name": body.name, "confirm": body.confirm})
     await record_audit(db, event_type="process_stopped", summary=f"Stop process requested: {pid}", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"pid": pid, "process": body.name, "confirm": body.confirm})
     await db.commit()
     return command_response("stop_process", pid=pid, name=body.name, confirm=body.confirm)
@@ -247,7 +255,7 @@ async def start_process(
 async def screen_start(machine_id: str, body: ScreenActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "control")
-    await require_consent_or_403(db, machine_id, "LIVE_SCREEN", user)
+    await require_consent_or_403(db, machine_id, "LIVE_SCREEN", user, body.model_dump())
     await record_audit(db, event_type="screenshot_started", summary=f"Screen {body.mode} requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"mode": body.mode, "consent": body.consent})
     await db.commit()
     return command_response("screen_start", mode=body.mode, consent=body.consent)
@@ -266,7 +274,7 @@ async def screen_stop(machine_id: str, body: ScreenActionIn, db: AsyncSession = 
 async def screen_capture(machine_id: str, body: ScreenActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "control")
-    await require_consent_or_403(db, machine_id, "SCREENSHOT", user)
+    await require_consent_or_403(db, machine_id, "SCREENSHOT", user, body.model_dump())
     await record_audit(db, event_type="screenshot_started", summary="Screenshot capture requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"mode": "capture", "consent": body.consent})
     await db.commit()
     return command_response("capture_screen", consent=body.consent)
@@ -276,7 +284,7 @@ async def screen_capture(machine_id: str, body: ScreenActionIn, db: AsyncSession
 async def webcam_start(machine_id: str, body: WebcamActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "webcam")
-    await require_consent_or_403(db, machine_id, "WEBCAM_START", user)
+    await require_consent_or_403(db, machine_id, "WEBCAM_START", user, body.model_dump())
     if not body.consent:
         await record_audit(db, event_type="acl_denied", summary="Webcam start denied without consent", actor_type="admin", actor_user_id=user.id, machine_id=machine_id)
         await db.commit()
@@ -292,6 +300,7 @@ async def webcam_start(machine_id: str, body: WebcamActionIn, db: AsyncSession =
 async def webcam_devices(machine_id: str, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "webcam")
+    await require_consent_or_403(db, machine_id, "WEBCAM_ENUMERATE", user, {})
     await record_audit(db, event_type="webcam_devices_listed", summary="Webcam devices requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id)
     await db.commit()
     return command_response("webcam_devices")
@@ -301,7 +310,7 @@ async def webcam_devices(machine_id: str, db: AsyncSession = Depends(get_db), us
 async def webcam_stop(machine_id: str, body: WebcamActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "webcam")
-    await require_consent_or_403(db, machine_id, "WEBCAM_STOP", user)
+    await require_consent_or_403(db, machine_id, "WEBCAM_STOP", user, body.model_dump())
     if not body.consent:
         await record_audit(db, event_type="acl_denied", summary="Webcam stop denied without consent", actor_type="admin", actor_user_id=user.id, machine_id=machine_id)
         await db.commit()
@@ -315,7 +324,7 @@ async def webcam_stop(machine_id: str, body: WebcamActionIn, db: AsyncSession = 
 async def webcam_snapshot(machine_id: str, body: WebcamActionIn, db: AsyncSession = Depends(get_db), user: User = Depends(require_permission(Permission.MACHINES_CONTROL))) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "webcam")
-    await require_consent_or_403(db, machine_id, "WEBCAM_START", user)
+    await require_consent_or_403(db, machine_id, "WEBCAM_START", user, body.model_dump())
     if not body.consent:
         await record_audit(db, event_type="webcam_denied", summary="Webcam snapshot denied without consent", actor_type="admin", actor_user_id=user.id, machine_id=machine_id)
         await db.commit()
@@ -323,6 +332,75 @@ async def webcam_snapshot(machine_id: str, body: WebcamActionIn, db: AsyncSessio
     await record_audit(db, event_type="webcam_snapshot", summary="Webcam snapshot requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"consent": body.consent})
     await db.commit()
     return command_response("webcam_snapshot", consent=True)
+
+
+@router.post("/machines/{machine_id}/keylogger/start", response_model=MachineCommandOut)
+async def keylogger_start(
+    machine_id: str,
+    body: KeyloggerStartIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.MACHINES_CONTROL)),
+) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    await require_machine_access(db, user, machine_id, "control")
+    if not body.session_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="keylogger session_id is required")
+    payload = body.model_dump()
+    await require_consent_or_403(db, machine_id, "KEYLOGGER_START", user, payload)
+    if not body.consent:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="keylogger requires consent")
+    await record_audit(db, event_type="keylogger_started", summary="Keylogger lab capture requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"session_id": body.session_id, "ttl_seconds": body.ttl_seconds})
+    await db.commit()
+    return command_response("keylogger_start", session_id=body.session_id, ttl_seconds=body.ttl_seconds, consent=True, requested_by=str(user.id))
+
+
+@router.post("/machines/{machine_id}/keylogger/stop", response_model=MachineCommandOut)
+async def keylogger_stop(
+    machine_id: str,
+    body: KeyloggerSessionIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.MACHINES_CONTROL)),
+) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    await require_machine_access(db, user, machine_id, "control")
+    payload = body.model_dump()
+    await require_consent_or_403(db, machine_id, "KEYLOGGER_STOP", user, payload)
+    await record_audit(db, event_type="keylogger_stopped", summary="Keylogger lab capture stop requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"session_id": body.session_id})
+    await db.commit()
+    return command_response("keylogger_stop", session_id=body.session_id, consent=body.consent)
+
+
+@router.get("/machines/{machine_id}/keylogger/{session_id}/events", response_model=MachineCommandOut)
+async def keylogger_events(
+    machine_id: str,
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.MACHINES_CONTROL)),
+) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    await require_machine_access(db, user, machine_id, "control")
+    await record_audit(db, event_type="keylogger_events_viewed", summary="Keylogger lab events requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"session_id": session_id})
+    await db.commit()
+    return command_response("keylogger_events", session_id=session_id)
+
+
+@router.post("/machines/{machine_id}/keylogger/{session_id}/export", response_model=MachineCommandOut)
+async def keylogger_export(
+    machine_id: str,
+    session_id: str,
+    body: KeyloggerSessionIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_permission(Permission.MACHINES_CONTROL)),
+) -> MachineCommandOut:
+    await require_machine_exists(db, machine_id)
+    await require_machine_access(db, user, machine_id, "control")
+    if body.session_id != session_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="session_id mismatch")
+    payload = body.model_dump()
+    await require_consent_or_403(db, machine_id, "KEYLOGGER_EXPORT", user, payload)
+    await record_audit(db, event_type="keylogger_exported", summary="Keylogger lab export requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"session_id": session_id})
+    await db.commit()
+    return command_response("keylogger_export", session_id=session_id, consent=body.consent)
 
 
 @router.post("/machines/{machine_id}/power", response_model=MachineCommandOut)
@@ -345,7 +423,7 @@ async def power_action(
     if not body.confirm:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="power action requires confirm")
     if action in {"restart", "shutdown"}:
-        await require_consent_or_403(db, machine_id, f"POWER_{action.upper()}", user)
+        await require_consent_or_403(db, machine_id, f"POWER_{action.upper()}", user, body.model_dump())
     if action == "lock" and not reason:
         reason = "lock workstation"
     if action == "cancel" and not reason:
@@ -391,7 +469,7 @@ async def file_get(
 ) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "file")
-    await require_consent_or_403(db, machine_id, "FILE_DOWNLOAD", user)
+    await require_consent_or_403(db, machine_id, "FILE_DOWNLOAD", user, body.model_dump())
     if body.path.startswith(("../", "..\\", "\\\\", "/", "C:", "c:")):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="path traversal rejected")
     await record_audit(db, event_type="file_downloaded_from_agent", summary="Sandbox file download requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"path": body.path})
@@ -421,7 +499,7 @@ async def remote_file_list(
 ) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "file")
-    await require_consent_or_403(db, machine_id, "FILE_LIST", user)
+    await require_consent_or_403(db, machine_id, "FILE_LIST", user, body.model_dump())
     if not body.consent:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="file list requires consent")
     await record_audit(db, event_type="file_list_requested", summary="Remote whitelist folder listing requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"root_path": body.root_path, "relative_path": body.relative_path})
@@ -438,7 +516,7 @@ async def remote_file_download(
 ) -> MachineCommandOut:
     await require_machine_exists(db, machine_id)
     await require_machine_access(db, user, machine_id, "file")
-    await require_consent_or_403(db, machine_id, "FILE_DOWNLOAD", user)
+    await require_consent_or_403(db, machine_id, "FILE_DOWNLOAD", user, body.model_dump())
     if not body.consent:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="file download requires consent")
     await record_audit(db, event_type="file_download_requested", summary="Remote whitelist file download requested", actor_type="admin", actor_user_id=user.id, machine_id=machine_id, metadata={"root_path": body.root_path, "relative_path": body.relative_path})

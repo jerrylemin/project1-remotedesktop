@@ -35,7 +35,7 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                         machine_id=settings.machine_id,
                         payload={
                             "machine_id": settings.machine_id,
-                            "machine_secret": settings.machine_token or "fake-secret",
+                            "machine_secret": settings.machine_token,
                             "machine_info": collect_machine_info() if settings.agent_mode == "real" else {"hostname": settings.machine_id, "os": "FakeOS Demo", "username": "demo"},
                         },
                     ))

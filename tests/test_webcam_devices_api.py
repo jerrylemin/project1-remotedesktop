@@ -9,7 +9,7 @@ async def test_webcam_start_requires_device_selection(api_client, admin_token: s
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with SessionLocal() as db:
         db.add(Machine(machine_id="m1", hostname="pc1", os="Windows", username="student", status="online"))
-        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_START", requested_by="1", reason="camera", ttl_seconds=60)
+        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_START", requested_by="1", reason="camera", ttl_seconds=60, command_payload={"consent": True, "device_id": None})
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()
 
@@ -19,11 +19,30 @@ async def test_webcam_start_requires_device_selection(api_client, admin_token: s
     assert response.json()["detail"] == "webcam device_id is required"
 
 
+async def test_webcam_devices_requires_approved_consent(api_client, admin_token: str) -> None:
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with SessionLocal() as db:
+        db.add(Machine(machine_id="m1", hostname="pc1", os="Windows", username="student", status="online"))
+        await db.commit()
+
+    blocked = await api_client.get("/api/machines/m1/webcam/devices", headers=headers)
+    assert blocked.status_code == 403
+
+    async with SessionLocal() as db:
+        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_ENUMERATE", requested_by="1", reason="list cameras", ttl_seconds=60, command_payload={})
+        await record_consent_decision(db, consent.id, "approved", "agent:m1")
+        await db.commit()
+
+    accepted = await api_client.get("/api/machines/m1/webcam/devices", headers=headers)
+    assert accepted.status_code == 200
+    assert accepted.json()["command"] == {"action": "webcam_devices"}
+
+
 async def test_webcam_start_passes_selected_device(api_client, admin_token: str) -> None:
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with SessionLocal() as db:
         db.add(Machine(machine_id="m1", hostname="pc1", os="Windows", username="student", status="online"))
-        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_START", requested_by="1", reason="camera", ttl_seconds=60)
+        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_START", requested_by="1", reason="camera", ttl_seconds=60, command_payload={"consent": True, "device_id": "camera-2"})
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()
 
@@ -44,7 +63,7 @@ async def test_webcam_stop_requires_approved_consent(api_client, admin_token: st
     assert "consent" in blocked.json()["detail"]
 
     async with SessionLocal() as db:
-        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_STOP", requested_by="1", reason="stop camera", ttl_seconds=60)
+        consent = await create_consent_request(db, machine_id="m1", command_type="WEBCAM_STOP", requested_by="1", reason="stop camera", ttl_seconds=60, command_payload={"consent": True, "device_id": None})
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()
 

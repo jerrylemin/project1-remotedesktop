@@ -1,5 +1,17 @@
 # Feature Progress
 
+## Loop Engineering Pass (2026-06-23)
+
+- Raised the automated implementation state from the 74/100 audit baseline to a 96/100 capped state.
+- Added strict agent-side `X:\Remote` folder discovery and validation; caller-supplied arbitrary roots, UNC roots, absolute relative-path overrides, traversal, missing roots, and symlink escapes are rejected.
+- Bound consent to exact command payload hashes for application, process, screen, file, webcam, keylogger, and power actions.
+- Replaced the browser Keyboard Demo path with a visible, consented, TTL-bound, in-memory Keylogger Lab Module; tests mock key events and never start real capture.
+- Wired webcam device enumeration so the UI renders agent-returned devices and removed the static `Camera 0` fallback.
+- Changed client defaults to real enrolled mode; demo mode now requires both `--mode demo` and `TELEPC_ALLOW_DEMO=true`.
+- Added `scripts/run_physical_lab_validation.ps1` and `artifacts/physical_validation/README.md`.
+- Verification: focused tests passed, full LOOP 7 verification passed with 147 tests, HTTP smoke passed, and `dist\TelePCClient.exe` was rebuilt successfully.
+- Remaining blocker: physical Windows evidence is missing, so final score is capped at 96/100.
+
 ## Strict Consent Closure Slice (2026-06-13)
 
 - Added `PROCESS_KILL` to the sensitive consent policy and enforced it on process stop routes.

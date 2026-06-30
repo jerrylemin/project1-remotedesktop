@@ -4,6 +4,10 @@ let currentSessionId = null;
 let lastFrameAt = 0;
 let keyboardRunning = false;
 let lastFrameMeta = { width: 640, height: 360 };
+let remoteRoots = [];
+let selectedRemoteRoot = null;
+let selectedRemoteRelativePath = "";
+let keyloggerSessionId = null;
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
 const fmtDate = value => value ? new Date(value).toLocaleString() : "never";
@@ -60,11 +64,23 @@ async function apiCommand(url, options = {}, { requireControl = true } = {}) {
   return response;
 }
 
-async function requestLocalConsent(commandType, reason) {
+async function apiCommandAwait(url, options = {}, { requireControl = true } = {}) {
+  if (requireControl) requireClaim();
+  const response = await jsonFetch(url, options);
+  if (!response.command) return response;
+  await wsClient.connect({ control: true });
+  const msg = await wsClient.sendCommandAwait(response.command);
+  await loadAudit();
+  const payload = msg.payload || {};
+  if (payload.ok === false) throw new Error(payload.error || "Command failed");
+  return payload.result || payload;
+}
+
+async function requestLocalConsent(commandType, reason, commandPayload = {}) {
   requireClaim("Claim control before requesting local consent.");
   const consent = await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/consent-requests`, {
     method: "POST",
-    body: JSON.stringify({ command_type: commandType, reason, ttl_seconds: 300 }),
+    body: JSON.stringify({ command_type: commandType, reason, command_payload: commandPayload, ttl_seconds: 300 }),
   });
   await wsClient.connect({ control: true });
   const response = await wsClient.sendCommandAwait({ action: "consent_request", request: consent });
@@ -98,7 +114,10 @@ function switchPanel(panel) {
   document.getElementById(`panel-${panel}`)?.classList.add("active");
   if (panel === "apps") loadApplications().catch(alert);
   if (panel === "processes") loadProcesses().catch(alert);
-  if (panel === "files") loadFilesAndJobs().catch(alert);
+  if (panel === "files") {
+    loadFilesAndJobs().catch(alert);
+    loadRemoteRoots().catch(() => {});
+  }
   if (panel === "webcam") loadWebcamDevices().catch(alert);
   if (panel === "audit") loadAudit().catch(alert);
 }
@@ -130,6 +149,13 @@ function handleWsResult(msg) {
     const state = result.error || (result.demo_safe ? "demo-safe: TELEPC_ENABLE_REAL_INPUT is not true" : "real input sent");
     appendKeyboardFeed(result.event, state);
     document.getElementById("keyboard-state").textContent = state;
+  }
+  if (result.session && result.session.session_id) {
+    keyloggerSessionId = result.session.session_id;
+    appendKeyboardFeed("keylogger", `${result.session.status} · events ${result.event_count ?? 0}`);
+  }
+  if (result.events) {
+    result.events.forEach(event => appendKeyboardFeed(event.event_type, `${event.key_name}${event.redacted ? " redacted" : ""}`));
   }
   if (result.action && result.demo_safe) document.getElementById("power-result").textContent = `${result.action} accepted for demo-safe agent flow`;
   loadAudit().catch(() => {});
@@ -186,12 +212,71 @@ async function loadFilesAndJobs() {
   document.getElementById("jobs-output").innerHTML = jobs.map(job => `<div class="stack-item"><strong>${esc(job.command)}</strong><small>${esc(job.status)} · exit ${job.exit_code ?? "-"} · ${fmtDate(job.started_at)}</small><pre class="metadata-preview">${esc(job.stdout_preview || job.stderr_preview || "")}</pre></div>`).join("") || `<div class="stack-item">No job history.</div>`;
 }
 
+function renderRemoteRoots(folders) {
+  remoteRoots = folders || [];
+  selectedRemoteRoot = remoteRoots[0]?.root_path || null;
+  selectedRemoteRelativePath = "";
+  document.getElementById("remote-root-list").innerHTML = remoteRoots.map(folder => `<button class="btn ghost" data-remote-root="${esc(folder.root_path)}">${esc(folder.drive_letter)}:\\Remote</button>`).join("") || `<div class="stack-item">No whitelisted remote folders found on this machine.</div>`;
+  document.getElementById("remote-files-output").replaceChildren();
+  document.getElementById("remote-files-up").disabled = true;
+}
+
+function renderRemoteFiles(files) {
+  document.getElementById("remote-files-up").disabled = !selectedRemoteRelativePath;
+  document.getElementById("remote-files-output").innerHTML = files.map(file => {
+    const isDir = file.entry_type === "directory";
+    return `<div class="stack-item"><strong>${esc(file.name)}</strong><small>${esc(file.entry_type)} · ${file.size_bytes ?? "-"} bytes · ${fmtDate(file.modified_at)}</small><button class="btn ghost" data-remote-path="${esc(file.relative_path)}" data-remote-action="${isDir ? "open" : "download"}">${isDir ? "Open" : "Download"}</button></div>`;
+  }).join("") || `<div class="stack-item">No files in this whitelisted folder.</div>`;
+}
+
+async function loadRemoteRoots() {
+  const result = await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/remote-files/folders`);
+  renderRemoteRoots(result.allowed_folders || []);
+}
+
+async function listRemoteFiles(relativePath = selectedRemoteRelativePath) {
+  if (!selectedRemoteRoot) throw new Error("No whitelisted remote folder selected.");
+  const payload = { root_path: selectedRemoteRoot, relative_path: relativePath, consent: true };
+  await requestLocalConsent("FILE_LIST", `List ${selectedRemoteRoot}\\${relativePath || ""}`, payload);
+  const result = await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/remote-files/list`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  selectedRemoteRelativePath = relativePath;
+  renderRemoteFiles(result.files || []);
+}
+
+async function downloadRemoteFile(relativePath) {
+  if (!selectedRemoteRoot) throw new Error("No whitelisted remote folder selected.");
+  const payload = { root_path: selectedRemoteRoot, relative_path: relativePath, consent: true };
+  await requestLocalConsent("FILE_DOWNLOAD", `Download ${selectedRemoteRoot}\\${relativePath}`, payload);
+  const result = await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/remote-files/download`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  const bytes = Uint8Array.from(atob(result.content_base64 || ""), c => c.charCodeAt(0));
+  const url = URL.createObjectURL(new Blob([bytes]));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = result.filename || "telepc-download.bin";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 async function loadWebcamDevices() {
-  const response = await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/devices`);
-  const devices = response.command ? [] : (response.webcam_devices || []);
+  document.getElementById("webcam-status").textContent = "loading devices";
+  await requestLocalConsent("WEBCAM_ENUMERATE", "List available webcam devices", {});
+  const response = await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/webcam/devices`);
+  const devices = response.webcam_devices || [];
   const select = document.getElementById("webcam-device");
-  if (select && !select.children.length) {
-    select.innerHTML = `<option value="camera-0">Camera 0</option>`;
+  const start = document.getElementById("webcam-start");
+  select.innerHTML = devices.map(device => `<option value="${esc(device.device_id)}">${esc(device.name || device.device_id)} (${esc(device.backend || "camera")})</option>`).join("");
+  if (!devices.length) {
+    document.getElementById("webcam-status").textContent = "no webcam found";
+    start.disabled = true;
+  } else {
+    document.getElementById("webcam-status").textContent = "device list loaded";
+    start.disabled = false;
   }
 }
 
@@ -246,6 +331,26 @@ document.getElementById("refresh-processes").addEventListener("click", () => loa
 document.getElementById("refresh-audit").addEventListener("click", () => loadAudit().catch(alert));
 document.getElementById("audit-event-filter").addEventListener("input", () => loadAudit().catch(() => {}));
 document.getElementById("refresh-files").addEventListener("click", () => loadFilesAndJobs().catch(alert));
+document.getElementById("load-remote-roots").addEventListener("click", () => loadRemoteRoots().catch(alert));
+document.getElementById("remote-files-up").addEventListener("click", () => {
+  const parts = selectedRemoteRelativePath.split(/[\\/]/).filter(Boolean);
+  parts.pop();
+  listRemoteFiles(parts.join("\\")).catch(alert);
+});
+document.getElementById("remote-root-list").addEventListener("click", event => {
+  const button = event.target.closest("[data-remote-root]");
+  if (!button) return;
+  selectedRemoteRoot = button.dataset.remoteRoot;
+  selectedRemoteRelativePath = "";
+  listRemoteFiles("").catch(alert);
+});
+document.getElementById("remote-files-output").addEventListener("click", event => {
+  const button = event.target.closest("[data-remote-action]");
+  if (!button) return;
+  const path = button.dataset.remotePath;
+  if (button.dataset.remoteAction === "open") listRemoteFiles(path).catch(alert);
+  if (button.dataset.remoteAction === "download") downloadRemoteFile(path).catch(alert);
+});
 
 document.getElementById("apps-table").addEventListener("click", async event => {
   const button = event.target.closest("[data-app-action]");
@@ -253,13 +358,15 @@ document.getElementById("apps-table").addEventListener("click", async event => {
   const action = button.dataset.appAction;
   const name = button.dataset.app;
   if (action === "start") {
-    await requestLocalConsent("APPLICATION_START", `Start ${name}`);
-    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/applications/start`, { method: "POST", body: JSON.stringify({ name, confirm: true }) });
+    const payload = { name, confirm: true };
+    await requestLocalConsent("APPLICATION_START", `Start ${name}`, payload);
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/applications/start`, { method: "POST", body: JSON.stringify(payload) });
   } else {
     const decision = await openConfirm("Stop application", `Stop ${name}?`);
     if (decision.ok) {
-      await requestLocalConsent("APPLICATION_STOP", `Stop ${name}`);
-      await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/applications/stop`, { method: "POST", body: JSON.stringify({ name, confirm: decision.confirm }) });
+      const payload = { name, confirm: decision.confirm };
+      await requestLocalConsent("APPLICATION_STOP", `Stop ${name}`, payload);
+      await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/applications/stop`, { method: "POST", body: JSON.stringify(payload) });
     }
   }
 });
@@ -269,13 +376,15 @@ document.getElementById("process-table").addEventListener("click", async event =
   if (!button) return;
   const decision = await openConfirm("Stop process", `Stop PID ${button.dataset.pid} (${button.dataset.process})?`);
   if (!decision.ok) return;
-  await requestLocalConsent("PROCESS_KILL", `Stop PID ${button.dataset.pid} (${button.dataset.process})`);
-  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/processes/${encodeURIComponent(button.dataset.pid)}/stop`, { method: "POST", body: JSON.stringify({ name: button.dataset.process, confirm: decision.confirm }) });
+  const payload = { pid: Number(button.dataset.pid), name: button.dataset.process, confirm: decision.confirm };
+  await requestLocalConsent("PROCESS_KILL", `Stop PID ${button.dataset.pid} (${button.dataset.process})`, payload);
+  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/processes/${encodeURIComponent(button.dataset.pid)}/stop`, { method: "POST", body: JSON.stringify({ name: payload.name, confirm: payload.confirm }) });
 });
 
 document.getElementById("start-screen").addEventListener("click", async () => {
-  await requestLocalConsent("LIVE_SCREEN", "Start live screen view");
-  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/start`, { method: "POST", body: JSON.stringify({ mode: "live", consent: true }) });
+  const payload = { mode: "live", consent: true };
+  await requestLocalConsent("LIVE_SCREEN", "Start live screen view", payload);
+  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/start`, { method: "POST", body: JSON.stringify(payload) });
   document.getElementById("screen-mode-label").textContent = "Live mode";
   await loadAudit();
 });
@@ -287,8 +396,9 @@ document.getElementById("stop-screen").addEventListener("click", async () => {
   await loadAudit();
 });
 document.getElementById("capture-screen").addEventListener("click", async () => {
-  await requestLocalConsent("SCREENSHOT", "Capture current screen");
-  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/capture`, { method: "POST", body: JSON.stringify({ mode: "screenshot", consent: true }) });
+  const payload = { mode: "screenshot", consent: true };
+  await requestLocalConsent("SCREENSHOT", "Capture current screen", payload);
+  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/capture`, { method: "POST", body: JSON.stringify(payload) });
   await loadAudit();
 });
 document.getElementById("screen-fps").addEventListener("change", async event => {
@@ -334,16 +444,18 @@ document.getElementById("webcam-start").addEventListener("click", async () => {
   try {
     if (!document.getElementById("webcam-consent").checked) throw new Error("Check webcam consent before starting the camera.");
     const deviceId = document.getElementById("webcam-device")?.value || "camera-0";
-    await requestLocalConsent("WEBCAM_START", "Start webcam preview");
-    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/start`, { method: "POST", body: JSON.stringify({ consent: true, device_id: deviceId }) });
+    const payload = { consent: true, device_id: deviceId };
+    await requestLocalConsent("WEBCAM_START", "Start webcam preview", payload);
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/start`, { method: "POST", body: JSON.stringify(payload) });
   } catch (error) {
     alert(error.message || error);
   }
 });
 document.getElementById("webcam-stop").addEventListener("click", async () => {
   try {
-    await requestLocalConsent("WEBCAM_STOP", "Stop webcam preview");
-    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify({ consent: true }) });
+    const payload = { consent: true };
+    await requestLocalConsent("WEBCAM_STOP", "Stop webcam preview", payload);
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/stop`, { method: "POST", body: JSON.stringify(payload) });
   } catch (error) {
     alert(error.message || error);
   }
@@ -351,8 +463,9 @@ document.getElementById("webcam-stop").addEventListener("click", async () => {
 document.getElementById("webcam-snapshot").addEventListener("click", () => {
   try {
     if (!document.getElementById("webcam-consent").checked) throw new Error("Check webcam consent before taking a snapshot.");
-    requestLocalConsent("WEBCAM_START", "Take webcam snapshot")
-      .then(() => apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/snapshot`, { method: "POST", body: JSON.stringify({ consent: true }) }))
+    const payload = { consent: true, device_id: null };
+    requestLocalConsent("WEBCAM_START", "Take webcam snapshot", payload)
+      .then(() => apiCommand(`/api/machines/${encodeURIComponent(machineId)}/webcam/snapshot`, { method: "POST", body: JSON.stringify(payload) }))
       .catch(alert);
   } catch (error) {
     alert(error.message || error);
@@ -361,12 +474,28 @@ document.getElementById("webcam-snapshot").addEventListener("click", () => {
 
 document.getElementById("keyboard-toggle").addEventListener("click", async () => {
   if (!keyboardRunning && !currentSessionId) {
-    alert("Claim control before starting real keyboard input.");
+    alert("Claim control before starting keyboard capture.");
     return;
   }
   if (!keyboardRunning) {
     try {
-      await requestLocalConsent("KEY_INPUT", "Keyboard Demo input forwarding");
+      keyloggerSessionId = crypto.randomUUID();
+      const payload = {
+        session_id: keyloggerSessionId,
+        ttl_seconds: Number(document.getElementById("keylogger-ttl").value || 60),
+        consent: true,
+      };
+      await requestLocalConsent("KEYLOGGER_START", "Start keyboard capture on this computer for lab demonstration", payload);
+      await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/keylogger/start`, { method: "POST", body: JSON.stringify(payload) });
+    } catch (error) {
+      alert(error.message || error);
+      return;
+    }
+  } else if (keyloggerSessionId) {
+    try {
+      const payload = { session_id: keyloggerSessionId, consent: true };
+      await requestLocalConsent("KEYLOGGER_STOP", "Stop keyboard capture", payload);
+      await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/keylogger/stop`, { method: "POST", body: JSON.stringify(payload) });
     } catch (error) {
       alert(error.message || error);
       return;
@@ -374,40 +503,26 @@ document.getElementById("keyboard-toggle").addEventListener("click", async () =>
   }
   keyboardRunning = !keyboardRunning;
   document.getElementById("keyboard-state").textContent = keyboardRunning ? "running" : "stopped";
-  document.getElementById("keyboard-toggle").textContent = keyboardRunning ? "Stop Real Input" : "Start Real Input";
+  document.getElementById("keyboard-toggle").textContent = keyboardRunning ? "Stop Key Capture" : "Start Key Capture";
 });
 
-async function sendKeyboardDemoEvent(eventName, event) {
-  if (!keyboardRunning) return;
-  if (!currentSessionId) {
-    alert("Claim control before sending keyboard input.");
-    keyboardRunning = false;
-    document.getElementById("keyboard-state").textContent = "stopped";
-    document.getElementById("keyboard-toggle").textContent = "Start Real Input";
-    return;
-  }
-  event.preventDefault();
+document.getElementById("keyboard-clear").addEventListener("click", () => document.getElementById("keyboard-feed").replaceChildren());
+document.getElementById("keyboard-export").addEventListener("click", async () => {
   try {
-    await wsClient.connect({ control: true });
-    wsClient.send("input_event", { action: "input_event", event: eventName, code: event.code });
-    appendKeyboardFeed(eventName, event.code);
+    if (!keyloggerSessionId) throw new Error("No key capture session to export.");
+    const payload = { session_id: keyloggerSessionId, consent: true };
+    await requestLocalConsent("KEYLOGGER_EXPORT", "Export key capture events", payload);
+    const result = await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/keylogger/${encodeURIComponent(keyloggerSessionId)}/export`, { method: "POST", body: JSON.stringify(payload) });
+    const bytes = Uint8Array.from(atob(result.content_base64 || ""), c => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = result.filename || "keylogger-lab.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   } catch (error) {
-    appendKeyboardFeed(eventName, error.message || error);
     alert(error.message || error);
   }
-}
-
-document.getElementById("keyboard-input").addEventListener("keydown", event => sendKeyboardDemoEvent("key_down", event));
-document.getElementById("keyboard-input").addEventListener("keyup", event => sendKeyboardDemoEvent("key_up", event));
-document.getElementById("keyboard-clear").addEventListener("click", () => document.getElementById("keyboard-feed").replaceChildren());
-document.getElementById("keyboard-export").addEventListener("click", () => {
-  const text = [...document.getElementById("keyboard-feed").children].map(node => node.textContent).join("\n");
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "keyboard-demo.txt";
-  a.click();
-  URL.revokeObjectURL(url);
 });
 
 document.querySelectorAll("[data-power]").forEach(button => button.addEventListener("click", async () => {
@@ -418,8 +533,9 @@ document.querySelectorAll("[data-power]").forEach(button => button.addEventListe
     if (!decision.ok) return;
     if (!decision.confirm) throw new Error("Check the audit confirmation box before sending a power action.");
     if (needsReason && decision.reason.trim().length < 5) throw new Error("Power restart/shutdown requires a reason of at least 5 characters.");
-    if (needsReason) await requestLocalConsent(`POWER_${action.toUpperCase()}`, `Power ${action}: ${decision.reason}`);
-    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/power`, { method: "POST", body: JSON.stringify({ action, confirm: true, reason: decision.reason }) });
+    const payload = { action, confirm: true, reason: decision.reason };
+    if (needsReason) await requestLocalConsent(`POWER_${action.toUpperCase()}`, `Power ${action}: ${decision.reason}`, payload);
+    await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/power`, { method: "POST", body: JSON.stringify(payload) });
   } catch (error) {
     alert(error.message || error);
   }

@@ -1,0 +1,20 @@
+# Loop plan
+
+| Blocker                              | Root cause | Smallest fix | Files to edit | Tests to add/update | 100/100 gate |
+| ------------------------------------ | ---------- | ------------ | ------------- | ------------------- | ------------ |
+| Literal keylogger missing            | Current code implements browser-scoped Keyboard Demo/input forwarding, not controlled-machine capture. | Add a consent-visible lab key capture provider with in-memory sessions, TTL, mockable events, redaction, and route wrappers; no stealth/persistence. | `apps/agent/key_capture.py`, `apps/agent/commands.py`, `apps/agent/providers.py`, `apps/api/routers/machines.py`, `apps/api/schemas.py`, `apps/api/templates/machine_detail.html`, `apps/api/static/js/machine_detail.js`, docs | `tests/test_keylogger_lab_module.py`, `tests/test_consent_exact_payload.py` | Start/stop/export require exact consent, TTL auto-stops, mock events work, sensitive contexts redact, no capture in tests unless mocked. |
+| File whitelist root caller supplied  | Agent validates candidate path inside whatever root the caller sends. | Make agent require requested root to equal a discovered existing `X:\Remote` root before listing/downloading. | `apps/agent/remote_files.py`, `apps/agent/commands.py`, `apps/api/static/js/machine_detail.js`, `apps/api/templates/machine_detail.html` | `tests/test_file_whitelist.py`, `tests/test_remote_file_ui_contract.py` | No arbitrary root; no free root textbox; traversal/UNC/absolute/symlink escapes rejected. |
+| Webcam UI device result not rendered | UI sends a relay command but does not await/render returned `webcam_devices`, then falls back to static `Camera 0`. | Use existing `sendCommandAwait` for enumeration, render returned devices, disable start when empty. | `apps/api/static/js/machine_detail.js`, `apps/api/templates/machine_detail.html` | `tests/test_webcam_ui_contract.py`, `tests/test_webcam_devices.py` | Real returned device ids appear and selected id is sent; no static fallback. |
+| Consent not exact payload-bound      | Consent lookup matches machine/type/requester only. | Add canonical payload hash and command id to consent create/require paths; pass payload at each sensitive route. | `apps/api/models.py`, `apps/api/schemas.py`, `apps/api/services/consent.py`, `apps/api/routers/consent.py`, `apps/api/routers/machines.py`, migration | `tests/test_consent_exact_payload.py`, `tests/test_consent_required_for_all_actions.py` | Approved consent only executes the exact action payload it approved. |
+| Demo/fake runtime default            | `client.py` defaults to `demo`, maps to fake providers, and default token is `fake-secret`. | Make client default `real`; require `TELEPC_ALLOW_DEMO=true` for demo mode; packaged EXE therefore defaults real. | `client.py`, `apps/agent/config.py`, tests, README | `tests/test_client_real_mode.py`, `tests/test_client_exe_packaging.py`, `tests/test_real_machines_only.py` | Production/default client is real; demo requires explicit env+flag and cannot leak into production list. |
+| Physical Windows validation pending  | Current environment cannot prove real EXE/client hardware behavior. | Create a guided non-destructive validation script and evidence manifest; cap score below 100 until screenshots/logs exist. | `docs/REAL_MACHINE_TEST_CHECKLIST.md`, `scripts/run_physical_lab_validation.ps1`, `artifacts/physical_validation/README.md`, reports | Documentation/evidence file checks only | Full 100 requires user-provided physical evidence files from authorized lab machines. |
+
+## @ponytail-review docs/loop_plan.md
+
+`docs/loop_plan.md:L7: shrink: do not create a new consent abstraction beyond payload hash helpers. Reuse existing ConsentRequest service and router.`
+
+`docs/loop_plan.md:L5: delete: admin-managed application whitelist is not a current blocker. Nothing in the patch plan should touch it.`
+
+`docs/loop_plan.md:L6: shrink: remote file UI can be static DOM plus existing relay helper. No frontend framework or new dependency.`
+
+net: -0 lines possible in plan, but source patches should reuse existing routes/services instead of new layers.

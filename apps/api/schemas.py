@@ -124,9 +124,22 @@ class RemoteFileListIn(BaseModel):
     consent: bool = False
 
 
+class KeyloggerStartIn(BaseModel):
+    session_id: str | None = None
+    ttl_seconds: int = Field(default=60, ge=1, le=300)
+    consent: bool = False
+
+
+class KeyloggerSessionIn(BaseModel):
+    session_id: str
+    consent: bool = False
+
+
 class ConsentRequestIn(BaseModel):
     command_type: str
     reason: str
+    command_id: str | None = None
+    command_payload: dict[str, Any] = Field(default_factory=dict)
     ttl_seconds: int = Field(default=300, ge=1, le=3600)
 
 
@@ -138,6 +151,7 @@ class ConsentDecisionIn(BaseModel):
 class ConsentRequestOut(BaseModel):
     id: str
     command_id: str | None
+    payload_hash: str | None = None
     machine_id: str
     requested_by: str
     command_type: str

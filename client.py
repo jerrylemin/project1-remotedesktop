@@ -31,8 +31,8 @@ class ClientConfig:
     api_port: int = 8000
     relay_port: int = 8001
     machine_id: str = ""
-    token: str = "fake-secret"
-    mode: str = "demo"
+    token: str = ""
+    mode: str = "real"
     profile: str | None = None
     confirm_real_mode: str | None = None
     sandbox_root: str = "./sandbox"
@@ -100,8 +100,8 @@ def parse_client_args(argv: list[str] | None = None) -> ClientConfig:
     parser.add_argument("--api-port", type=int, default=8000, help="API port on the main machine.")
     parser.add_argument("--relay-port", type=int, default=8001, help="Relay port on the main machine.")
     parser.add_argument("--machine-id", default=default_machine_id(), help="Name shown in the Machines page.")
-    parser.add_argument("--token", default="fake-secret", help="Registered machine secret sent to relay. Keep non-empty.")
-    parser.add_argument("--mode", choices=["demo", "fake", "real"], default="demo", help="Use demo-safe fake providers or real lab providers.")
+    parser.add_argument("--token", default=os.getenv("MACHINE_TOKEN", ""), help="Registered machine secret sent to relay. Keep non-empty.")
+    parser.add_argument("--mode", choices=["demo", "fake", "real"], default="real", help="Use real lab providers by default. Demo requires TELEPC_ALLOW_DEMO=true.")
     parser.add_argument("--profile", choices=["lab-real"], default=None, help="Explicit profile for authorized lab real mode.")
     parser.add_argument("--confirm-real-mode", default=None, help="Required confirmation phrase for real lab input/power.")
     parser.add_argument("--sandbox-root", default="./sandbox", help="Local sandbox root on this test machine.")
@@ -109,6 +109,8 @@ def parse_client_args(argv: list[str] | None = None) -> ClientConfig:
     parser.add_argument("--connect-timeout", type=int, default=0, help="Seconds to wait for main machine. 0 waits forever.")
     args = parser.parse_args(argv)
     mode = "demo" if args.mode == "fake" else args.mode
+    if mode == "demo" and os.getenv("TELEPC_ALLOW_DEMO", "false").lower() not in {"1", "true", "yes"}:
+        raise SystemExit("Demo mode requires TELEPC_ALLOW_DEMO=true.")
     return ClientConfig(
         server=args.server,
         api_url=args.api_url,
@@ -140,7 +142,7 @@ def require_real_mode_confirmation(config: ClientConfig) -> None:
         os.getenv(name, "").lower() == "true"
         for name in ("TELEPC_ENABLE_REAL_INPUT", "TELEPC_ENABLE_REAL_POWER")
     )
-    if config.mode != "real" and not real_env_requested:
+    if config.profile != "lab-real" and not real_env_requested:
         return
     if config.confirm_real_mode != REAL_MODE_CONFIRMATION:
         raise SystemExit(
@@ -150,7 +152,7 @@ def require_real_mode_confirmation(config: ClientConfig) -> None:
 
 
 def set_real_mode_environment(config: ClientConfig) -> None:
-    if config.mode != "real":
+    if config.profile != "lab-real":
         os.environ.pop("TELEPC_ENABLE_REAL_INPUT", None)
         os.environ.pop("TELEPC_ENABLE_REAL_POWER", None)
         os.environ.pop("TELEPC_REAL_MODE_CONFIRMED", None)

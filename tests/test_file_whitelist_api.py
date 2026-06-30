@@ -24,7 +24,15 @@ async def test_remote_file_list_returns_agent_command_after_consent(api_client, 
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with SessionLocal() as db:
         db.add(Machine(machine_id="m1", hostname="pc1", os="Windows", username="student", status="online"))
-        consent = await create_consent_request(db, machine_id="m1", command_type="FILE_LIST", requested_by="1", reason="list remote folder", ttl_seconds=60)
+        consent = await create_consent_request(
+            db,
+            machine_id="m1",
+            command_type="FILE_LIST",
+            requested_by="1",
+            reason="list remote folder",
+            ttl_seconds=60,
+            command_payload={"root_path": "C:\\Remote", "relative_path": "subdir", "consent": True},
+        )
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()
 

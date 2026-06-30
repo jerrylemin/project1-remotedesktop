@@ -34,3 +34,4 @@ def test_client_entrypoint_is_real_client_not_fake_agent() -> None:
     assert CLIENT_ENTRYPOINT.name == "client.py"
     assert "run_fake_agent" not in source
     assert "run_agent(settings)" in source
+    assert 'default="real"' in source

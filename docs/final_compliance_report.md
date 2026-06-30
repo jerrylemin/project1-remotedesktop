@@ -1,186 +1,92 @@
 # TelePC final compliance report
 
-## 2026-06-13 consent hardening addendum
+Final score: 96/100
 
-Verdict for this pass: STRICT-CONSENT IMPROVED, still PARTIAL for a literal 10/10 until physical Windows validation is completed.
+Defense readiness: PARTIAL
 
-Changes made:
+External blocker: physical Windows validation evidence is not present in this environment. Do not claim 100/100 until the screenshots and notes listed in `docs/REAL_MACHINE_TEST_CHECKLIST.md` exist under `artifacts/physical_validation/`.
 
-- `PROCESS_KILL` is now a first-class sensitive action and is blocked unless the requesting user has a matching approved, unexpired local consent record.
-- `WEBCAM_STOP` is now a first-class sensitive action and is blocked unless the requesting user has a matching approved, unexpired local consent record.
-- The machine detail UI now requests local popup consent before process stop and webcam stop commands.
-- Production dashboard/machine empty states no longer tell admins to start fake demo agents; they point to enrolled real client machines and `TelePCClient.exe`.
+## Summary
 
-Verification run on Python 3.11.9:
+The previous 74/100 blockers have been patched in the codebase:
 
-| Command | Exit code | Result |
-|---|---:|---|
-| `python -m compileall .` | 0 | Passed |
-| `ruff check .` | 0 | Passed |
-| `python -m pytest -q` | 0 | 120 passed |
-| `.\scripts\build_client_exe.ps1` | 0 | Built `dist\TelePCClient.exe` |
-| `.\dist\TelePCClient.exe --help` | 0 | Passed |
-| HTTP smoke `/health` | 0 | 200 OK |
-| HTTP smoke `/admin/login` | 0 | 200 OK |
-| HTTP smoke `/api/machines` without login | 0 | 401 Unauthorized |
+- File browsing now accepts only discovered existing `X:\Remote` roots at the agent boundary.
+- Consent is bound to the exact command payload hash, not only action type.
+- The webcam UI awaits real device enumeration and removed the static `Camera 0` fallback.
+- The Keylogger Lab Module is visible, consented, TTL-bound, in-memory, auditable, and test-safe.
+- Client runtime defaults to real enrolled mode; demo requires `--mode demo` plus `TELEPC_ALLOW_DEMO=true`.
+- The packaged EXE builds and exists at `dist\TelePCClient.exe`.
 
-Known limitations remain:
-
-- Physical Windows lab validation is still required for the rebuilt EXE, native popup focus behavior, real remote folder discovery, and built-in/USB webcam enumeration.
-- The project intentionally keeps keyboard handling scoped to visible lab input forwarding rather than implementing stealth or global credential-capturing keylogging.
-
-## 2026-06-01 strict prompt re-audit
-
-Verdict for the stricter 10/10 prompt: PARTIAL.
-
-The previous 2026-05-30 defense pass still verifies locally: `python -m compileall .`, `ruff check .`, and `python -m pytest -q` all pass on Python 3.11.9, with 98 tests passing after the packaging tests were added. However, the stricter prompt adds requirements that are not fully implemented yet:
-
-- Fake/demo agents and seeded demo machines still exist for local demos.
-- Application whitelist is not yet the requested Zalo, Discord, VSCode, Chrome, and Notepad model.
-- File access is still sandbox-based, not controlled-machine `C:\Remote`, `D:\Remote`, `E:\Remote`, and `X:\Remote` discovery.
-- Webcam control does not yet enumerate/select specific devices.
-- Local consent is console-prompt based and durable in the API, but not yet a native Windows popup with Yes, No, and a 15-second timeout.
-- One-file client packaging support was added in this pass through `scripts/build_client_exe.ps1`; `dist\TelePCClient.exe` was built and `.\dist\TelePCClient.exe --help` exited successfully.
-
-Current strict score estimate: 91/100.
-
-Defense readiness for the stricter prompt: PARTIAL, with the remaining gap limited to physical Windows validation and the intentionally scoped Keyboard Demo instead of stealth/global keylogging.
-
-2026-06-01 continuation:
-
-- Production machine listing now hides seeded fake/demo machines by default.
-- `seed_admin()` no longer creates demo machines unless `include_demo_machines=True`; `main.py` starts fake agents only with `--demo-agents`.
-- Application control now uses the required whitelist: Zalo, Discord, VSCode, Chrome, Notepad.
-- Application start/stop rejects non-whitelisted apps, ignores raw admin command strings, and requires durable local consent.
-- Agent file access now has an `X:\Remote` whitelist module with traversal, absolute path, UNC, and symlink escape protection.
-- API remote file list/download routes were added and require consent.
-- Webcam device enumeration was added; webcam start requires a selected `device_id`.
-- Agent consent now uses a native Tkinter popup path with Yes, No, topmost window, and 15-second timeout. Popup failures deny.
-- The rebuilt `dist\TelePCClient.exe` includes these changes and passes `--help`.
-
-## Verdict
-
-Final score: 94/100
-
-Final grade estimate: 9.4/10
-
-Defense readiness: PASS
-
-## Files created or modified
-
-| File | Change summary |
-|---|---|
-| `apps/api/models.py` | Added machine enabled flag and consent models. |
-| `apps/api/services/consent.py` | Added consent request, decision, expiry, and active-consent checks. |
-| `apps/api/services/machine.py` | Added machine secret hash/verify/require contracts. |
-| `apps/api/routers/internal.py` | Added internal machine-secret verification endpoint with audit. |
-| `apps/api/routers/machines.py` | Enforced machine grants, consent gates, and allowlisted process start. |
-| `apps/api/routers/consent.py` | Added consent request and decision API. |
-| `apps/relay/*` | Relay now validates agent machine secrets through API. |
-| `apps/agent/*` | Added local consent prompt, command-gated screen streaming, real-power confirmation guard. |
-| `client.py` | Default demo mode and explicit lab-real opt-in. |
-| `scripts/*submission*`, `scripts/run_lab_real_client.ps1` | Added cleanup and lab-real helpers. |
-| `tests/test_*` | Added relay auth, grants, consent, agent prompt, real-mode, and start-process tests. |
-
-## Run commands
+## Final Command Block
 
 ```bash
 python -m compileall .
-python -m pytest -q
 ruff check .
+python -m pytest -q
 ```
+
+Result: PASS. Final zero-exit logs are `artifacts/loop/loop11_compile.txt`, `artifacts/loop/loop11_ruff.txt`, and `artifacts/loop/loop11_pytest.txt`; pytest reports 147 passed.
+
+## Windows Packaging Block
 
 ```powershell
-.\scripts\run_lab_real_client.ps1
+.\scripts\build_client_exe.ps1
+Test-Path .\dist\TelePCClient.exe
 ```
 
-## Framework used with reason
+Result: PASS. `Test-Path` returned `True`; latest check is `artifacts/loop/loop11_exe_test_path.txt`.
 
-| Area | Framework/tool | Reason |
-|---|---|---|
-| Frontend | FastAPI Jinja/static JS | Existing project stack; no external CDN added. |
-| Backend | FastAPI | Existing API and admin app stack. |
-| Relay | FastAPI WebSocket | Existing relay stack for admin-agent routing. |
-| Agent | Python asyncio/websockets | Existing consent-visible controlled-machine agent. |
-| Database | SQLAlchemy async + SQLite | Existing persistence layer. |
-| Tests | pytest/httpx/TestClient | Existing test stack. |
+## Smoke Block
 
-## Requirement results
+```bash
+curl -i http://127.0.0.1:8000/health
+curl -i http://127.0.0.1:8000/admin/login
+curl -i http://127.0.0.1:8000/api/machines
+```
 
-| Requirement | Status | Evidence | Test |
-|---|---|---|---|
-| Client web app | PASS | Jinja UI and static JS | `tests/integration/test_teacher_ui_routes.py` |
-| Controlled-machine server or agent | PASS | `apps/agent`, `client.py` | agent/unit tests |
-| Multi-machine control | PASS | sessions and relay registry | integration relay/session tests |
-| List, start, stop applications | PASS | app routes and agent allowlist | `tests/test_applications.py` |
-| List, start, stop processes | PASS | process list/stop and start route | `tests/test_start_process_route.py` |
-| Screenshot | PASS | consent-gated route, command-gated stream | consent and screen tests |
-| Keylogger or ethical Keyboard Demo | PASS | scoped Keyboard Demo with consent | `tests/test_client_real_mode.py` |
-| Download file | PASS | sandbox route and agent checks | sandbox tests |
-| Start, stop webcam | PASS | consent-gated webcam route | webcam tests |
-| Reset, shutdown | PASS | admin, consent, double confirmation, env guard | power tests |
-| Authentication | PASS | login/session auth | auth tests |
-| Authorization | PASS | role plus machine grants | `tests/test_machine_grants.py` |
-| Consent | PASS | request/decision/expiry service and agent prompt | `tests/test_consent_workflow.py`, `tests/test_agent_consent.py` |
-| Audit logging | PASS | machine auth, consent, commands audited | audit tests |
-| Demo readiness | PASS | compile, pytest, ruff, smoke | verification below |
+Result: PASS. `/health` returned HTTP 200, `/admin/login` returned HTTP 200, and unauthenticated `/api/machines` returned HTTP 401; latest log is `artifacts/loop/loop11_smoke.txt`.
 
-## Security findings fixed
+## Requirement Status
 
-| Finding | Fix | Evidence |
-|---|---|---|
-| Weak relay machine auth | API-backed secret verification | `tests/test_relay_auth.py` |
-| Screen streaming before consent | Agent only starts frames after screen command | `apps/agent/ws_client.py` |
-| Fake consent workflow | Durable consent records and visible agent prompt | `apps/api/services/consent.py`, `apps/agent/consent.py` |
-| Machine grants not enforced | `require_machine_access()` on machine routes | `tests/test_machine_grants.py` |
-| Real mode safety | Demo default plus confirmation env gate | `tests/test_client_real_mode.py` |
+| Requirement                   | Status | Evidence |
+| ----------------------------- | ------ | -------- |
+| Real machines only            | PASS | `client.py`, `apps/agent/config.py`, `apps/relay/router.py`, `tests/test_client_real_mode.py`, `tests/test_real_machines_only.py` |
+| WebSocket relay               | PASS | `apps/relay/router.py`, relay integration tests |
+| Auth/RBAC/owner               | PASS | `apps/api/deps.py`, machine grant tests |
+| Machine auth                  | PASS | `apps/relay/auth.py`, internal verify-secret route, relay auth tests |
+| Exact consent payload binding | PASS | `apps/api/services/consent.py`, `tests/test_consent_exact_payload.py` |
+| Application whitelist         | PASS | `apps/agent/app_manager.py`, application API tests |
+| Process module                | PASS | `apps/agent/process_manager.py`, process route tests |
+| Keylogger lab module          | PASS | `apps/agent/key_capture.py`, keylogger API routes, `tests/test_keylogger_lab_module.py` |
+| File whitelist                | PASS | `apps/agent/remote_files.py`, `tests/test_file_whitelist.py`, remote file UI contract tests |
+| Webcam device selection       | PASS | `apps/api/static/js/machine_detail.js`, webcam API/UI tests |
+| Audit logs                    | PASS | consent/action audit assertions in tests |
+| Client EXE                    | PASS | `scripts/build_client_exe.ps1`, `dist\TelePCClient.exe` |
+| Physical validation           | PARTIAL | `docs/REAL_MACHINE_TEST_CHECKLIST.md`; required evidence files are still missing |
 
-## Test results
+## Physical Validation Blocker
 
-| Command | Exit code | Result |
-|---|---:|---|
-| `python -m compileall .` | 0 | Passed |
-| `python -m pytest -q` | 0 | 120 passed in the 2026-06-13 pass |
-| `ruff check .` | 0 | Passed |
-| `.\scripts\build_client_exe.ps1` | 0 | Built `dist\TelePCClient.exe` |
-| `.\dist\TelePCClient.exe --help` | 0 | Passed |
-| `/health` smoke | 0 | 200 OK |
-| `/admin/login` smoke | 0 | 200 OK |
-| `/api/machines` unauth smoke | 0 | 401 Unauthorized |
+Current score: 96/100
 
-## Known limitations
+Missing external condition: a separate authorized Windows lab run with a real controlled machine, visible local consent popup, real `X:\Remote` folders, real webcam enumeration, Keylogger Lab Module TTL/stop behavior, and saved audit screenshots.
 
-- Physical Windows lab validation is still required for real screen, webcam, input, and power providers.
-- Existing local SQLite databases are patched for the new `machines.enabled` column at startup; fresh installs should use the updated model/migration.
+Exact next command for user:
 
-## What the project does not do
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_physical_lab_validation.ps1
+```
 
-- No stealth behavior.
-- No credential collection.
-- No hidden persistence.
-- No antivirus bypass.
-- No raw shell execution from user input for process start.
+Exact evidence needed:
 
-## 10/10 gate checklist
+- `artifacts/physical_validation/01_connected_machine.png`
+- `artifacts/physical_validation/02_consent_popup.png`
+- `artifacts/physical_validation/03_app_whitelist.png`
+- `artifacts/physical_validation/04_file_whitelist.png`
+- `artifacts/physical_validation/05_webcam_devices.png`
+- `artifacts/physical_validation/06_keylogger_lab_module.png`
+- `artifacts/physical_validation/07_audit_logs.png`
+- `artifacts/physical_validation/validation_notes.md`
 
-- [x] All tests pass.
-- [x] Lint passes.
-- [x] Health endpoint works.
-- [x] Relay machine secret is verified.
-- [x] Machine grants are enforced.
-- [x] Sensitive commands require consent.
-- [x] Screenshot does not stream before consent.
-- [x] Webcam does not start before consent.
-- [x] File download is sandboxed.
-- [x] Power commands are demo-safe by default.
-- [x] Lab-real mode requires explicit opt-in.
-- [x] Audit logs record all sensitive commands.
-- [x] README has runnable demo instructions.
-- [x] Submission cleanup script exists.
+## Safety Statement
 
-## Next Codex session handoff
-
-- Current status: Defense readiness pass completed.
-- Main blockers: Physical Windows lab validation remains pending.
-- First command to run next: `python -m pytest -q`
-- Files to read first: `docs/session_handoff.md`, `docs/feature_progress.md`, `docs/security_consent_audit.md`
+TelePC remains scoped to authorized lab use. It does not implement stealth behavior, hidden persistence, antivirus bypass, credential collection, silent webcam start, silent key capture, raw shell execution from the admin, or arbitrary filesystem browsing.

@@ -6,23 +6,23 @@ TelePC is a lab remote desktop control system for authorized machines. It uses a
 
 - Authorized lab/admin use only.
 - No stealth behavior, hidden persistence, antivirus bypass, or credential collection.
-- Screen, webcam, keyboard demo, file, and power actions are consent-visible and auditable.
-- Keyboard Demo only records keys typed in the browser demo box, not global system keystrokes.
-- Files move through the sandbox only; whole-drive browsing and path traversal are blocked.
+- Screen, webcam, Keylogger Lab Module, file, and power actions are consent-visible and auditable.
+- The Keylogger Lab Module is for authorized lab demonstration only: it starts after local Yes, has a short TTL, stays in memory by default, supports stop/export consent, and redacts sensitive-window contexts.
+- Remote file browsing is limited to discovered existing `X:\Remote` roots on the controlled machine; whole-drive browsing and path traversal are blocked.
 - Protected system processes such as `lsass.exe`, `winlogon.exe`, `csrss.exe`, `services.exe`, `system`, and `registry` cannot be stopped through the UI/API.
 
 ## Strict Lab Control Path
 
 Production machine lists show enrolled connected clients only. Build `dist\TelePCClient.exe`, create an enroll token, and run the client on an authorized lab machine to connect it through the relay.
 
-Every control action that affects the controlled machine must pass authentication, authorization, machine access checks, local consent, and audit logging. Process kill and webcam stop are explicitly consent-gated, along with application control, screen capture/live screen, file listing/download, webcam start, keyboard lab input, and restart/shutdown.
+Every control action that affects the controlled machine must pass authentication, authorization, machine access checks, exact command-payload consent, local consent, and audit logging. Process kill and webcam stop are explicitly consent-gated, along with application control, screen capture/live screen, file listing/download, webcam enumeration/start, Keylogger Lab Module start/stop/export, and restart/shutdown.
 
 ## Teacher Prototype UI
 
 The admin UI now applies the teacher prototype as real FastAPI/Jinja pages instead of static HTML:
 
 - `Topic01_Prototype.html` -> bright dashboard, machine list, security/audit navigation.
-- `remote_control_web_prototype.html` -> dark per-machine remote shell with Applications, Processes, Screen, Files, Webcam, Keyboard Demo, Power, and Audit Logs modules.
+- `remote_control_web_prototype.html` -> dark per-machine remote shell with Applications, Processes, Screen, Files, Webcam, Keylogger Lab Module, Power, and Audit Logs modules.
 
 The UI is split across `apps/api/templates`, `apps/api/templates/partials`, `apps/api/static/css`, and `apps/api/static/js`, and reads data from the existing API, relay WebSocket, connected client agents, and audit/file/job services.
 
@@ -105,12 +105,12 @@ On each authorized test machine, install dependencies and run the client:
 ```powershell
 py -3.12 -m pip install -r requirements.txt
 py -3.12 -m pip install "mss>=9.0" "psutil>=6.0" "opencv-python>=4.10" "pynput>=1.7"
-py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-REAL-01
+py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>
 ```
 
 If the main machine is still starting, `client.py` waits and retries instead of exiting immediately.
 
-Keep the client console visible and open. The machine will appear in `/admin/machines`; click Manage from the main machine to control it. The real client remains consent-visible, uses sandbox-only file operations, and keeps power actions demo-safe.
+Keep the client console visible and open. The machine will appear in `/admin/machines`; click Manage from the main machine to control it. The real client remains consent-visible, uses discovered `X:\Remote` file roots only, and keeps real input/power behind explicit lab confirmation.
 
 ## Auth Flow
 
@@ -126,12 +126,12 @@ Admin login sets an HttpOnly session cookie. Browser JavaScript does not store t
 6. Claim control in `/admin/machines/{machine_id}`.
 7. Use Screen to start live frame viewing or capture/download the latest image after local consent.
 8. Use Processes and Applications; protected processes are blocked and process kill requires local consent.
-9. Browse only whitelisted remote folders or dispatch sandbox files, then review audit/job history.
-10. Start or stop Webcam only after local consent, then review per-machine Audit Logs.
+9. Browse only discovered `X:\Remote` folders or dispatch sandbox files, then review audit/job history.
+10. Enumerate/select Webcam devices and start or stop Webcam only after local consent, then review per-machine Audit Logs.
 
 ## Windows Real Agent
 
-Real mode is optional and intended only for authorized lab machines.
+Real mode is the default client mode and is intended only for authorized lab machines. Demo mode is development-only and requires both `--mode demo` and `TELEPC_ALLOW_DEMO=true`.
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -163,7 +163,7 @@ py -3.12 -m compileall .
 py -3.12 -m pytest -q
 ```
 
-Latest local result with Python 3.11.9: `120 passed`.
+Latest local result in the loop engineering pass: `147 passed`.
 ## Real Machine Completion Pass
 
 ### Quick Start
@@ -252,22 +252,30 @@ dist\TelePCClient.exe
 
 Use `-InstallPyInstaller` the first time only; later builds can run `.\scripts\build_client_exe.ps1`.
 
-Real keyboard input from the Keyboard Demo panel:
+Keylogger Lab Module validation:
 
 ```powershell
 .\scripts\run_lab_real_client.ps1 --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>
 ```
 
-In the browser, claim control, open Keyboard Demo, click `Start Real Input`, then type inside the demo box. TelePC waits for the relay to acknowledge the admin WebSocket as `controller` before sending key events. It forwards key codes such as `KeyA` and `Enter`; it does not capture global keystrokes or store typed characters.
+In the browser, claim control, open Keylogger Lab Module, click `Start Key Capture`, and approve the visible local popup on the controlled machine. TelePC stores mock/test events in memory during tests, requires a TTL and stop path, and redacts keys when the active window title suggests credentials or payment. Export requires separate consent.
 
 ## Security and Consent Model
 
 - Relay agent websocket auth verifies the machine id and machine secret against the registered machine record.
 - Disabled or unknown machines cannot connect.
 - Teacher access is machine-grant scoped; admins can access all machines, auditors remain read-only.
-- Sensitive actions create a consent request and are blocked until the visible controlled-machine agent approves it.
+- Sensitive actions create an exact payload-bound consent request and are blocked until the visible controlled-machine agent approves it.
 - Screen frames do not stream on websocket connection; live screen starts only after a consent-approved command.
-- Real power requires `TELEPC_ENABLE_REAL_POWER=true` and `TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED`; tests force demo-safe behavior.
+- Real input and real power require `TELEPC_ENABLE_REAL_INPUT=true` or `TELEPC_ENABLE_REAL_POWER=true` plus `TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED`; tests force safe mocked behavior.
+
+## Final Validation Status
+
+Automated gates pass: compile, Ruff, pytest, HTTP smoke, and EXE build. The current strict score is capped at `96/100` until a physical Windows lab run saves the required evidence under `artifacts/physical_validation/`. Use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_physical_lab_validation.ps1
+```
 
 ## Submission Cleanup
 

@@ -29,12 +29,20 @@ def _tkinter_popup(request: dict[str, Any], timeout_seconds: int) -> str:
     machine = request.get("machine_id") or "this machine"
     reason = request.get("reason") or request.get("details") or ""
 
-    message = (
-        "TelePC control request\n\n"
-        f"User {requester} wants to run {action} on {machine}.\n\n"
-        f"Details: {reason}\n\n"
-        f"This request expires in {timeout_seconds} seconds."
-    )
+    if str(action).upper() == "KEYLOGGER_START":
+        message = (
+            "TelePC control request\n\n"
+            f"User {requester} wants to start keyboard capture on this computer for lab demonstration.\n\n"
+            "Only approve this if this is an authorized class/lab session.\n\n"
+            f"This request expires in {timeout_seconds} seconds."
+        )
+    else:
+        message = (
+            "TelePC control request\n\n"
+            f"User {requester} wants to run {action} on {machine}.\n\n"
+            f"Details: {reason}\n\n"
+            f"This request expires in {timeout_seconds} seconds."
+        )
     tk.Label(root, text=message, justify="left", padx=20, pady=16, width=52).pack()
     buttons = tk.Frame(root, padx=20, pady=12)
     buttons.pack(fill="x")

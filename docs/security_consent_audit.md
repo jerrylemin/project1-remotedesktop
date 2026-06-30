@@ -2,6 +2,16 @@
 
 Date: 2026-05-30
 
+## 2026-06-23 loop engineering update
+
+The consent policy is now exact payload-bound. Consent requests store a canonical command payload hash, and execution checks recompute that hash before allowing the command. An approval for one app, file path, process PID, webcam device, keylogger session, or power payload cannot be reused for another payload.
+
+The sensitive command set now includes `WEBCAM_ENUMERATE` and `KEYLOGGER_EXPORT` in addition to start/stop/control actions. File list/download, webcam enumerate/start/stop, keylogger start/stop/export, app start/stop, process kill, screen, and power routes all use the exact payload check.
+
+The Keylogger Lab Module is allowed only as a visible lab module: no capture before local Yes, timeout means deny, no hidden persistence, short TTL, in-memory storage by default, separate export consent, and sensitive-window redaction.
+
+Remaining security blocker: physical Windows validation evidence is not present. The current score is capped at 96/100 until `artifacts/physical_validation/` contains the required screenshots and notes.
+
 ## 2026-06-13 update
 
 The consent policy now explicitly includes:
@@ -65,3 +75,4 @@ Denied, pending, expired, and mismatched consent must block execution and write 
 - Consent decisions are written back to the API and audited.
 - Relay auth rejects unknown, disabled, empty, and wrong machine secrets.
 - Real input/power remain disabled by default and require lab-real confirmation.
+- Demo mode is development-only and requires `TELEPC_ALLOW_DEMO=true`.

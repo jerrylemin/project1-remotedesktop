@@ -20,10 +20,10 @@ class AgentSettings(BaseSettings):
     relay_url: str = "ws://localhost:8001"
     api_url: str = "http://localhost:8000"
     machine_token: str = ""
-    machine_id: str = "fake-machine-001"
+    machine_id: str = "telepc-client"
     sandbox_root: Path = Path("./sandbox")
     require_consent: bool = True
-    agent_mode: str = "fake"
+    agent_mode: str = "real"
     job_timeout_seconds: int = 30
     runner_allowlist: str = "python,powershell,pwsh,cmd"
     app_allowlist: str = ",".join(APP_ALLOWLIST)

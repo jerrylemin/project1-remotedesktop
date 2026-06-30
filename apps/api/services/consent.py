@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -8,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models import ConsentDecision, ConsentRequest
 from apps.api.services.audit import record_audit
+from shared.redaction import redact
 from shared.time_utils import utc_now
 
 SENSITIVE_COMMANDS = {
@@ -19,8 +23,10 @@ SENSITIVE_COMMANDS = {
     "KEY_INPUT",
     "KEYLOGGER_START",
     "KEYLOGGER_STOP",
+    "KEYLOGGER_EXPORT",
     "FILE_LIST",
     "FILE_DOWNLOAD",
+    "WEBCAM_ENUMERATE",
     "WEBCAM_START",
     "WEBCAM_STOP",
     "POWER_RESTART",
@@ -32,6 +38,20 @@ def as_aware_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
+def canonicalize_command_payload(payload: dict[str, Any] | None) -> str:
+    return json.dumps(redact(payload or {}), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def compute_command_payload_hash(action_type: str, machine_id: str, requested_by: str, payload: dict[str, Any] | None) -> str:
+    body = {
+        "action_type": action_type.upper(),
+        "machine_id": machine_id,
+        "requested_by": str(requested_by),
+        "payload": json.loads(canonicalize_command_payload(payload)),
+    }
+    return hashlib.sha256(canonicalize_command_payload(body).encode("utf-8")).hexdigest()
+
+
 async def create_consent_request(
     db: AsyncSession,
     *,
@@ -41,11 +61,14 @@ async def create_consent_request(
     reason: str,
     ttl_seconds: int,
     command_id: str | None = None,
+    command_payload: dict[str, Any] | None = None,
 ) -> ConsentRequest:
     command_type = command_type.upper()
+    payload_hash = compute_command_payload_hash(command_type, machine_id, requested_by, command_payload)
     request = ConsentRequest(
         id=str(uuid4()),
         command_id=command_id,
+        payload_hash=payload_hash,
         machine_id=machine_id,
         requested_by=str(requested_by),
         command_type=command_type,
@@ -61,7 +84,7 @@ async def create_consent_request(
         actor_type="admin",
         actor_user_id=int(requested_by) if str(requested_by).isdigit() else None,
         machine_id=machine_id,
-        metadata={"consent_id": request.id, "command_type": command_type, "reason": reason},
+        metadata={"consent_id": request.id, "command_id": command_id, "command_type": command_type, "payload_hash": payload_hash, "reason": reason},
     )
     await db.flush()
     return request
@@ -87,20 +110,28 @@ async def record_consent_decision(db: AsyncSession, consent_id: str, decision: s
         summary=f"Consent {request.status} for {request.command_type}",
         actor_type="agent",
         machine_id=request.machine_id,
-        metadata={"consent_id": request.id, "command_type": request.command_type, "decided_by": decided_by},
+        metadata={"consent_id": request.id, "command_id": request.command_id, "command_type": request.command_type, "payload_hash": request.payload_hash, "decided_by": decided_by},
     )
     await db.flush()
     return request
 
 
-async def require_active_consent(db: AsyncSession, machine_id: str, command_type: str, requested_by: str) -> ConsentRequest:
+async def require_active_consent(
+    db: AsyncSession,
+    machine_id: str,
+    command_type: str,
+    requested_by: str,
+    command_payload: dict[str, Any] | None = None,
+) -> ConsentRequest:
     command_type = command_type.upper()
+    payload_hash = compute_command_payload_hash(command_type, machine_id, requested_by, command_payload)
     request = await db.scalar(
         select(ConsentRequest)
         .where(
             ConsentRequest.machine_id == machine_id,
             ConsentRequest.command_type == command_type,
             ConsentRequest.requested_by == str(requested_by),
+            ConsentRequest.payload_hash == payload_hash,
         )
         .order_by(ConsentRequest.created_at.desc())
     )
@@ -112,7 +143,7 @@ async def require_active_consent(db: AsyncSession, machine_id: str, command_type
             actor_type="system",
             machine_id=machine_id,
             actor_user_id=int(requested_by) if str(requested_by).isdigit() else None,
-            metadata={"command_type": command_type},
+            metadata={"command_type": command_type, "payload_hash": payload_hash},
         )
         raise PermissionError("consent_required")
     if as_aware_utc(request.expires_at) <= utc_now():
@@ -123,7 +154,7 @@ async def require_active_consent(db: AsyncSession, machine_id: str, command_type
             summary=f"Consent expired for {command_type}",
             actor_type="system",
             machine_id=machine_id,
-            metadata={"consent_id": request.id, "command_type": command_type},
+            metadata={"consent_id": request.id, "command_type": command_type, "payload_hash": payload_hash},
         )
         await db.flush()
         raise PermissionError("consent_expired")
@@ -134,7 +165,7 @@ async def require_active_consent(db: AsyncSession, machine_id: str, command_type
             summary=f"Consent {request.status} blocks {command_type}",
             actor_type="system",
             machine_id=machine_id,
-            metadata={"consent_id": request.id, "command_type": command_type, "status": request.status},
+            metadata={"consent_id": request.id, "command_type": command_type, "payload_hash": payload_hash, "status": request.status},
         )
         raise PermissionError("consent_not_approved")
     return request

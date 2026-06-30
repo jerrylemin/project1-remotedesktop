@@ -76,6 +76,7 @@ async def test_process_stop_requires_approved_consent(api_client, admin_token: s
             requested_by="1",
             reason="stop notepad",
             ttl_seconds=60,
+            command_payload={"pid": 500, "name": "notepad.exe", "confirm": True},
         )
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()
@@ -102,6 +103,7 @@ async def test_power_requires_confirm_and_reason(api_client, admin_token: str) -
             requested_by="1",
             reason="demo restart",
             ttl_seconds=60,
+            command_payload={"action": "restart", "confirm": True, "reason": "demo restart"},
         )
         await record_consent_decision(db, consent.id, "approved", "agent:m1")
         await db.commit()

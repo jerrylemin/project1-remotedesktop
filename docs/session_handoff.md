@@ -1,5 +1,41 @@
 # Session Handoff
 
+## Loop Engineering Pass (2026-06-23)
+
+Current status:
+
+- Automated implementation gates are complete against the strict 74/100 audit blockers.
+- File whitelist root validation is enforced at the agent boundary in `apps/agent/remote_files.py`.
+- Consent is exact-command bound by payload hash in `apps/api/services/consent.py`.
+- Keylogger Lab Module is visible, consented, TTL-bound, in-memory, and test-safe in `apps/agent/key_capture.py`.
+- Webcam UI now awaits and renders real device enumeration from the agent; no static `Camera 0` fallback remains.
+- Client and packaged EXE default to real enrolled mode; demo requires explicit development opt-in.
+- Verification passed: focused tests, full pytest with 147 tests during LOOP 7, Ruff, compile, HTTP smoke, and EXE build.
+- Score is capped at 96/100 because physical Windows validation evidence is missing.
+
+First command next:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_physical_lab_validation.ps1
+```
+
+Evidence required next:
+
+- `artifacts/physical_validation/01_connected_machine.png`
+- `artifacts/physical_validation/02_consent_popup.png`
+- `artifacts/physical_validation/03_app_whitelist.png`
+- `artifacts/physical_validation/04_file_whitelist.png`
+- `artifacts/physical_validation/05_webcam_devices.png`
+- `artifacts/physical_validation/06_keylogger_lab_module.png`
+- `artifacts/physical_validation/07_audit_logs.png`
+- `artifacts/physical_validation/validation_notes.md`
+
+Files to read first next time:
+
+- `docs/final_compliance_report.md`
+- `docs/loop_scoreboard.md`
+- `docs/REAL_MACHINE_TEST_CHECKLIST.md`
+
 ## Strict Consent Closure Slice (2026-06-13)
 
 Current status:

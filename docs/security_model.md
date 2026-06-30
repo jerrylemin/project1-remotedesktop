@@ -20,9 +20,10 @@ Authorization:
 Consent and safety:
 
 - Agent prints a visible consent/control banner.
-- Fake mode is default for demo/test.
-- Key input stores metadata only.
-- Dangerous actions require `CONFIRM` in UI and are intended to be audited.
+- Client real mode is the default. Fake/demo providers are for explicit development/test mode only.
+- Consent is bound to the exact command payload hash before execution.
+- The Keylogger Lab Module is visible, TTL-bound, in-memory by default, and requires local Yes before capture; export requires separate consent.
+- Dangerous actions require local consent and are audited.
 - Real agent providers have fake and safe fallback behavior. Missing optional dependencies return clear command errors instead of crashing the agent.
 
 Audit and redaction:
@@ -30,12 +31,12 @@ Audit and redaction:
 - Audit metadata is recursively redacted for `password`, `token`, `session_raw_id`, `keystroke_content`, `cookie`, `private_key`, and `file_content`.
 ## Real-Machine Safety Model Update (2026-05-26)
 
-- Consent-visible operation remains mandatory: the agent startup path prints the visible control banner and fake mode is the default for demos.
+- Consent-visible operation remains mandatory: the agent startup path prints the visible control banner, and demo mode requires explicit development opt-in.
 - Admin pages use the same HttpOnly session cookie as API calls; unauthenticated page loads redirect to `/admin/login`, and underprivileged roles receive `403.html`.
 - Controller lock is enforced in two places: the API owns the persistent `control_sessions` row, and the relay checks `/internal/control-session/{machine_id}` before forwarding protected commands.
 - Observers may receive frames and results but command, input, and file-dispatch sends are rejected with `observer_only`.
-- Real input is disabled unless `TELEPC_ENABLE_REAL_INPUT=true`; input audit/event summaries never include key characters.
-- Keyboard input is scoped to the Keyboard Demo text box. The browser no longer forwards global page keydown/keyup events, and it waits for the relay to acknowledge the admin as controller before sending key codes.
-- File transfers are sandbox-only. The agent rejects dot segments, absolute paths, drive-letter paths, UNC paths, nested unsafe filenames, symlink escapes, and SHA256 mismatches.
+- Real input is disabled unless `TELEPC_ENABLE_REAL_INPUT=true`; key capture is a separate visible lab module with consent, TTL, stop, and redaction.
+- The browser no longer forwards global page keydown/keyup events.
+- Remote file browsing is limited to discovered existing `X:\Remote` roots. The agent rejects arbitrary roots, dot segments, absolute paths, drive-letter overrides, UNC paths, nested unsafe filenames, symlink escapes, and SHA256 mismatches.
 - Power actions build Windows commands but do not execute them unless `TELEPC_ENABLE_REAL_POWER=true`; all power actions require audit confirmation, and restart/shutdown require an audit reason.
 - Audit metadata is redacted for password, token, secret, cookie, and authorization keys before storage.

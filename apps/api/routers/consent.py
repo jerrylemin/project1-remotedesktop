@@ -18,6 +18,7 @@ def consent_out(request) -> ConsentRequestOut:
     return ConsentRequestOut(
         id=request.id,
         command_id=request.command_id,
+        payload_hash=request.payload_hash,
         machine_id=request.machine_id,
         requested_by=request.requested_by,
         command_type=request.command_type,
@@ -47,6 +48,8 @@ async def request_machine_consent(
         requested_by=str(user.id),
         reason=body.reason,
         ttl_seconds=body.ttl_seconds,
+        command_id=body.command_id,
+        command_payload=body.command_payload,
     )
     await db.commit()
     return consent_out(request)
