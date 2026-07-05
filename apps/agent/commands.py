@@ -36,7 +36,7 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
         process_name = str(command.get("name") or "").lower()
         if process_name in PROTECTED_PROCESS_NAMES:
             raise PermissionError("protected process cannot be stopped")
-        return providers.processes.stop_process(int(command["pid"]), bool(command.get("confirm")))
+        return providers.processes.stop_process(int(command["pid"]), bool(command.get("confirm")), str(command.get("name") or "") or None)
     if action == "input_event":
         return providers.input_controller.handle_input(command)
     if action == "keylogger_start":
@@ -100,7 +100,12 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
     if action == "webcam_snapshot":
         if not command.get("consent"):
             raise PermissionError("webcam_consent_required")
-        return {"webcam_frame": providers.webcam.snapshot(machine_id)}
+        device_id = command.get("device_id")
+        providers.webcam.set_webcam(True, True, device_id)
+        try:
+            return {"webcam_frame": providers.webcam.snapshot(machine_id)}
+        finally:
+            providers.webcam.set_webcam(False, True, device_id)
     if action == "run_job":
         return await providers.sandbox.run(machine_id, sandbox_root, command)
     if action == "power":

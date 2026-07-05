@@ -4,11 +4,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.db import get_db
 from apps.api.deps_internal import require_internal_secret
+from apps.api.models import ConsentRequest
 from apps.api.services.audit import record_audit
+from apps.api.services.consent import consume_active_consent, record_consent_decision
 from apps.api.services.machine import require_valid_machine, upsert_machine_status
 from apps.api.services.session import get_active_control_session, release_active_control_session
 
@@ -41,6 +44,20 @@ class MachineSecretVerifyIn(BaseModel):
 class MachineIdentityOut(BaseModel):
     machine_id: str
     status: str
+
+
+class CommandAuthorizationIn(BaseModel):
+    machine_id: str
+    requested_by: str
+    command_id: str
+    command_type: str
+    command_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AgentConsentDecisionIn(BaseModel):
+    machine_id: str
+    consent_id: str
+    decision: str
 
 
 class InternalControlSessionOut(BaseModel):
@@ -125,6 +142,37 @@ async def internal_control_session(machine_id: str, db: AsyncSession = Depends(g
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no active control session")
     return InternalControlSessionOut(id=session.id, machine_id=session.machine_id, controller_user_id=session.controller_user_id)
+
+
+@router.post("/commands/authorize")
+async def internal_authorize_command(body: CommandAuthorizationIn, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    try:
+        consent = await consume_active_consent(
+            db,
+            body.machine_id,
+            body.command_type,
+            body.requested_by,
+            body.command_payload,
+            body.command_id,
+        )
+    except PermissionError as exc:
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    await db.commit()
+    return {"status": "authorized", "consent_id": consent.id, "command_id": consent.command_id or ""}
+
+
+@router.post("/consent-decisions")
+async def internal_agent_consent_decision(body: AgentConsentDecisionIn, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    request = await db.scalar(select(ConsentRequest).where(ConsentRequest.id == body.consent_id))
+    if request is None or request.machine_id != body.machine_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="consent request not found for machine")
+    try:
+        request = await record_consent_decision(db, body.consent_id, body.decision, f"agent:{body.machine_id}")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await db.commit()
+    return {"status": request.status, "consent_id": request.id}
 
 
 @router.delete("/control-session/{machine_id}")

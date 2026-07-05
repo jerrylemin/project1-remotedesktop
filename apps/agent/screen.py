@@ -9,6 +9,13 @@ from PIL import Image, ImageDraw
 from shared.time_utils import utc_iso
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
 def fake_jpeg_frame(label: str = "TelePC Fake Agent") -> str:
     image = Image.new("RGB", (640, 360), color=(28, 34, 40))
     draw = ImageDraw.Draw(image)
@@ -21,12 +28,12 @@ def fake_jpeg_frame(label: str = "TelePC Fake Agent") -> str:
 
 
 def screen_fps() -> int:
-    value = int(os.getenv("TELEPC_SCREEN_FPS", "5"))
+    value = _env_int("TELEPC_SCREEN_FPS", 5)
     return value if value in {1, 5, 10} else 5
 
 
 def jpeg_quality() -> int:
-    value = int(os.getenv("TELEPC_SCREEN_JPEG_QUALITY", "60"))
+    value = _env_int("TELEPC_SCREEN_JPEG_QUALITY", 60)
     return max(20, min(95, value))
 
 

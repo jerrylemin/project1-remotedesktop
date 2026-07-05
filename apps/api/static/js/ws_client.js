@@ -7,7 +7,7 @@ class TelepcWsClient {
     this.ws = null;
     this.role = "observer";
     this.roleWaiters = [];
-    this.resultWaiters = [];
+    this.resultWaiters = new Map();
   }
 
   async ticket() {
@@ -16,10 +16,10 @@ class TelepcWsClient {
     return (await res.json()).ws_ticket;
   }
 
-  send(type, payload = {}) {
+  send(type, payload = {}, sessionId = null) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) throw new Error("WebSocket is not connected");
     const msgId = crypto.randomUUID();
-    this.ws.send(JSON.stringify({ type, msg_id: msgId, ts: new Date().toISOString(), machine_id: this.machineId, session_id: null, payload }));
+    this.ws.send(JSON.stringify({ type, msg_id: msgId, ts: new Date().toISOString(), machine_id: this.machineId, session_id: sessionId, payload }));
     return msgId;
   }
 
@@ -43,7 +43,10 @@ class TelepcWsClient {
       this.ws.addEventListener("error", () => reject(new Error("Relay connection failed")), { once: true });
     });
     this.ws.addEventListener("message", event => this.handle(JSON.parse(event.data)));
-    this.ws.addEventListener("close", () => this.onStatus("offline"));
+    this.ws.addEventListener("close", () => {
+      this.rejectResultWaiters(new Error("Relay disconnected"));
+      this.onStatus("offline");
+    });
     await this.subscribe(control);
   }
 
@@ -90,38 +93,49 @@ class TelepcWsClient {
     }
     if (msg.type === "frame" && (msg.payload?.jpeg_b64 || msg.payload?.data)) this.onFrame(msg.payload);
     if (msg.type === "command_result" || msg.type === "error" || msg.type === "job_status") {
-      const waiter = this.resultWaiters.shift();
+      const waiter = msg.session_id ? this.resultWaiters.get(msg.session_id) : null;
       if (waiter) {
         clearTimeout(waiter.timer);
+        this.resultWaiters.delete(msg.session_id);
         waiter.resolve(msg);
       }
       this.onResult(msg);
     }
   }
 
-  sendCommand(command) {
-    this.send("command", command);
+  sendCommand(command, commandId = null) {
+    return this.send("command", command, commandId);
   }
 
   sendCommandAwait(command, timeoutMs = 120000) {
     return new Promise((resolve, reject) => {
+      const commandId = crypto.randomUUID();
       const waiter = { resolve, reject, timer: null };
       waiter.timer = setTimeout(() => {
-        this.resultWaiters = this.resultWaiters.filter(item => item !== waiter);
+        this.resultWaiters.delete(commandId);
         reject(new Error("Timed out waiting for agent response"));
       }, timeoutMs);
-      this.resultWaiters.push(waiter);
+      this.resultWaiters.set(commandId, waiter);
       try {
-        this.sendCommand(command);
+        this.sendCommand(command, commandId);
       } catch (error) {
         clearTimeout(waiter.timer);
-        this.resultWaiters = this.resultWaiters.filter(item => item !== waiter);
+        this.resultWaiters.delete(commandId);
         reject(error);
       }
     });
   }
 
+  rejectResultWaiters(error) {
+    this.resultWaiters.forEach(waiter => {
+      clearTimeout(waiter.timer);
+      waiter.reject(error);
+    });
+    this.resultWaiters.clear();
+  }
+
   close() {
+    this.rejectResultWaiters(new Error("Relay closed"));
     this.ws?.close();
     this.ws = null;
     this.role = "observer";

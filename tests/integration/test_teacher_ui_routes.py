@@ -86,6 +86,36 @@ async def test_process_stop_requires_approved_consent(api_client, admin_token: s
     assert accepted.json()["command"]["action"] == "stop_process"
 
 
+async def test_live_screen_start_and_stop_require_separate_consent(api_client, admin_token: str) -> None:
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    payload = {"mode": "live", "consent": True}
+    async with SessionLocal() as db:
+        db.add(Machine(machine_id="m1", hostname="pc1", os="Windows", username="student", status="online"))
+        await db.commit()
+
+    assert (await api_client.post("/api/machines/m1/screen/start", headers=headers, json=payload)).status_code == 403
+    assert (await api_client.post("/api/machines/m1/screen/stop", headers=headers, json=payload)).status_code == 403
+
+    async with SessionLocal() as db:
+        for command_type in ("LIVE_SCREEN_START", "LIVE_SCREEN_STOP"):
+            consent = await create_consent_request(
+                db,
+                machine_id="m1",
+                command_type=command_type,
+                requested_by="1",
+                reason=command_type,
+                ttl_seconds=60,
+                command_payload=payload,
+            )
+            await record_consent_decision(db, consent.id, "approved", "agent:m1")
+        await db.commit()
+
+    started = await api_client.post("/api/machines/m1/screen/start", headers=headers, json=payload)
+    stopped = await api_client.post("/api/machines/m1/screen/stop", headers=headers, json=payload)
+    assert started.json()["command"]["action"] == "screen_start"
+    assert stopped.json()["command"]["action"] == "screen_stop"
+
+
 async def test_power_requires_confirm_and_reason(api_client, admin_token: str) -> None:
     headers = {"Authorization": f"Bearer {admin_token}"}
     async with SessionLocal() as db:

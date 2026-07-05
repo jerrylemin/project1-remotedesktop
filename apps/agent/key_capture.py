@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 import os
+from threading import Timer
 from typing import Literal
 from uuid import uuid4
 
@@ -35,6 +36,7 @@ SENSITIVE_TITLE_WORDS = {"password", "login", "credential", "payment", "bank", "
 _sessions: dict[str, KeyCaptureSession] = {}
 _events: dict[str, list[KeyEvent]] = {}
 _listeners: dict[str, object] = {}
+_timers: dict[str, Timer] = {}
 
 
 def utc_now() -> datetime:
@@ -75,6 +77,12 @@ def _serialize_event(event: KeyEvent) -> dict:
 def _expire_if_needed(session_id: str) -> None:
     session = _sessions.get(session_id)
     if session and session.status == "active" and session.expires_at <= utc_now():
+        stop_key_capture_session(session_id, status="expired")
+
+
+def _expire_session(session_id: str) -> None:
+    session = _sessions.get(session_id)
+    if session is not None and session.status == "active":
         stop_key_capture_session(session_id, status="expired")
 
 
@@ -121,8 +129,10 @@ def _start_listener(session_id: str) -> object | None:
 
 
 def start_key_capture_session(ttl_seconds: int, consent: dict, session_id: str | None = None, machine_id: str = "", requested_by: str = "") -> dict:
-    if not consent.get("approved", True):
+    if not consent.get("approved", False):
         raise PermissionError("key capture consent required")
+    if any(session.status == "active" for session in _sessions.values()):
+        raise RuntimeError("a key capture session is already active")
     ttl = max(1, min(int(ttl_seconds or 60), 300))
     resolved_session_id = session_id or str(uuid4())
     session = KeyCaptureSession(
@@ -138,6 +148,10 @@ def start_key_capture_session(ttl_seconds: int, consent: dict, session_id: str |
     listener = _start_listener(resolved_session_id)
     if listener is not None:
         _listeners[resolved_session_id] = listener
+    timer = Timer(ttl, lambda: _expire_session(resolved_session_id))
+    timer.daemon = True
+    _timers[resolved_session_id] = timer
+    timer.start()
     print(f"TelePC Keylogger Lab Module active for {ttl} seconds. Local consent approved.", flush=True)
     return {"session": _serialize_session(session), "event_count": 0, "listener": listener is not None}
 
@@ -149,6 +163,9 @@ def stop_key_capture_session(session_id: str, status: SessionStatus = "stopped")
     listener = _listeners.pop(session_id, None)
     if listener is not None:
         listener.stop()
+    timer = _timers.pop(session_id, None)
+    if timer is not None:
+        timer.cancel()
     stopped = KeyCaptureSession(
         session_id=session.session_id,
         machine_id=session.machine_id,
@@ -167,7 +184,7 @@ def get_key_capture_events(session_id: str) -> list[dict]:
 
 
 def export_key_capture_events(session_id: str, consent: dict) -> bytes:
-    if not consent.get("approved", True):
+    if not consent.get("approved", False):
         raise PermissionError("key capture export consent required")
     lines = ["timestamp,session_id,event_type,key_name,redacted,active_window_title"]
     for event in get_key_capture_events(session_id):
@@ -190,5 +207,8 @@ def reset_key_capture_state() -> None:
     for listener in list(_listeners.values()):
         listener.stop()
     _listeners.clear()
+    for timer in list(_timers.values()):
+        timer.cancel()
+    _timers.clear()
     _sessions.clear()
     _events.clear()

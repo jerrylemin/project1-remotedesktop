@@ -56,4 +56,6 @@ async def test_start_whitelisted_application_ignores_raw_command(api_client, adm
     )
 
     assert response.status_code == 200
-    assert response.json()["command"] == {"action": "start_application", "app_key": "chrome", "name": "chrome", "confirm": False}
+    command = response.json()["command"]
+    assert command.pop("_command_id") == consent.command_id
+    assert command == {"action": "start_application", "app_key": "chrome", "name": "chrome", "confirm": False}

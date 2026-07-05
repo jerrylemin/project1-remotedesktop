@@ -7,7 +7,7 @@ from shared.crypto import hash_secret
 from sqlalchemy import select
 
 
-async def seed_admin(username: str = "admin", password: str = "admin123", *, include_demo_machines: bool = False) -> None:
+async def seed_admin(username: str, password: str, *, include_demo_machines: bool = False) -> None:
     await init_db()
     async with SessionLocal() as db:
         await ensure_roles(db)

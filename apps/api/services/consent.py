@@ -11,7 +11,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.models import ConsentDecision, ConsentRequest
 from apps.api.services.audit import record_audit
-from shared.redaction import redact
 from shared.time_utils import utc_now
 
 SENSITIVE_COMMANDS = {
@@ -20,6 +19,8 @@ SENSITIVE_COMMANDS = {
     "PROCESS_KILL",
     "SCREENSHOT",
     "LIVE_SCREEN",
+    "LIVE_SCREEN_START",
+    "LIVE_SCREEN_STOP",
     "KEY_INPUT",
     "KEYLOGGER_START",
     "KEYLOGGER_STOP",
@@ -39,7 +40,7 @@ def as_aware_utc(value: datetime) -> datetime:
 
 
 def canonicalize_command_payload(payload: dict[str, Any] | None) -> str:
-    return json.dumps(redact(payload or {}), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(payload or {}, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
 def compute_command_payload_hash(action_type: str, machine_id: str, requested_by: str, payload: dict[str, Any] | None) -> str:
@@ -67,7 +68,7 @@ async def create_consent_request(
     payload_hash = compute_command_payload_hash(command_type, machine_id, requested_by, command_payload)
     request = ConsentRequest(
         id=str(uuid4()),
-        command_id=command_id,
+        command_id=command_id or str(uuid4()),
         payload_hash=payload_hash,
         machine_id=machine_id,
         requested_by=str(requested_by),
@@ -84,7 +85,7 @@ async def create_consent_request(
         actor_type="admin",
         actor_user_id=int(requested_by) if str(requested_by).isdigit() else None,
         machine_id=machine_id,
-        metadata={"consent_id": request.id, "command_id": command_id, "command_type": command_type, "payload_hash": payload_hash, "reason": reason},
+        metadata={"consent_id": request.id, "command_id": request.command_id, "command_type": command_type, "payload_hash": payload_hash, "reason": reason},
     )
     await db.flush()
     return request
@@ -122,17 +123,21 @@ async def require_active_consent(
     command_type: str,
     requested_by: str,
     command_payload: dict[str, Any] | None = None,
+    command_id: str | None = None,
 ) -> ConsentRequest:
     command_type = command_type.upper()
     payload_hash = compute_command_payload_hash(command_type, machine_id, requested_by, command_payload)
-    request = await db.scalar(
-        select(ConsentRequest)
-        .where(
+    conditions = [
             ConsentRequest.machine_id == machine_id,
             ConsentRequest.command_type == command_type,
             ConsentRequest.requested_by == str(requested_by),
             ConsentRequest.payload_hash == payload_hash,
-        )
+    ]
+    if command_id is not None:
+        conditions.append(ConsentRequest.command_id == command_id)
+    request = await db.scalar(
+        select(ConsentRequest)
+        .where(*conditions)
         .order_by(ConsentRequest.created_at.desc())
     )
     if request is None:
@@ -168,4 +173,27 @@ async def require_active_consent(
             metadata={"consent_id": request.id, "command_type": command_type, "payload_hash": payload_hash, "status": request.status},
         )
         raise PermissionError("consent_not_approved")
+    return request
+
+
+async def consume_active_consent(
+    db: AsyncSession,
+    machine_id: str,
+    command_type: str,
+    requested_by: str,
+    command_payload: dict[str, Any] | None = None,
+    command_id: str | None = None,
+) -> ConsentRequest:
+    request = await require_active_consent(db, machine_id, command_type, requested_by, command_payload, command_id)
+    request.status = "consumed"
+    await record_audit(
+        db,
+        event_type="consent_consumed",
+        summary=f"Consent consumed for {command_type.upper()}",
+        actor_type="system",
+        machine_id=machine_id,
+        actor_user_id=int(requested_by) if str(requested_by).isdigit() else None,
+        metadata={"consent_id": request.id, "command_id": request.command_id, "command_type": command_type.upper(), "payload_hash": request.payload_hash},
+    )
+    await db.flush()
     return request

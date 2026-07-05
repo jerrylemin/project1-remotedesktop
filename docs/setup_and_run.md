@@ -2,11 +2,13 @@
 
 ```powershell
 python -m pip install -r requirements.txt
-python scripts/create_admin.py --username admin --password admin123
+python scripts/create_admin.py --username admin
 python scripts/run_api.py
 python scripts/run_relay.py
 python scripts/run_fake_agent.py
 ```
+
+`create_admin.py` prompts securely for the password. For a real two-machine deployment, follow `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md`; fake agents are development-only.
 
 Admin UI: `http://localhost:8000/admin/dashboard`
 

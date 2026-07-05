@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 import os
 from pathlib import Path
+import re
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,10 @@ def _resolve_relative(root_path: str | Path, relative_path: str = "", *, require
     if relative_path.startswith(("\\\\", "/", "\\")):
         raise PermissionError("absolute path rejected")
     relative = Path(relative_path)
+    parts = [part for part in re.split(r"[\\/]", relative_path) if part]
+    reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+    if len(relative_path) > 240 or any(part.rstrip(". ").split(".", 1)[0].upper() in reserved or part != part.rstrip(". ") for part in parts):
+        raise PermissionError("reserved or unsafe Windows path rejected")
     if relative.is_absolute() or any(part == ".." for part in relative.parts):
         raise PermissionError("path traversal rejected")
     root = require_discovered_allowed_root(str(root_path)) if require_discovered else Path(root_path).resolve()
@@ -106,11 +111,16 @@ def list_files_in_allowed_root(root_path: str, relative_path: str = "") -> list[
     return rows
 
 
-def download_file_from_allowed_root(root_path: str, relative_path: str) -> bytes:
-    target = _resolve_relative(root_path, relative_path)
+def download_file_from_allowed_root(root_path: str, relative_path: str, *, require_discovered: bool = True) -> bytes:
+    target = _resolve_relative(root_path, relative_path, require_discovered=require_discovered)
     if not target.exists() or not target.is_file():
         raise FileNotFoundError("allowed file not found")
-    return target.read_bytes()
+    limit = max(1, int(os.getenv("TELEPC_MAX_REMOTE_DOWNLOAD_BYTES", str(10 * 1024 * 1024))))
+    with target.open("rb") as handle:
+        data = handle.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("remote file too large")
+    return data
 
 
 def list_files_in_allowed_folder(root_path: str | Path, relative_path: str = "") -> list[dict[str, object]]:

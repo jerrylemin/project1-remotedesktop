@@ -18,11 +18,17 @@ Automated loop status: all source-code blockers have been patched and verified. 
 | Webcam discovery and control         |      6 | PASS | Awaited device enumeration UI and route consent tests; physical device screenshots still required for final 100. |
 | Audit logging                        |      6 | PASS | Consent/action audit assertions in focused tests and full suite. |
 | Client one-file exe                  |      4 | PASS | `.\scripts\build_client_exe.ps1`; `Test-Path .\dist\TelePCClient.exe` returned `True`. |
-| Tests, lint, compile, smoke          |      4 | PASS | `python -m compileall .`, `ruff check .`, `python -m pytest -q`, HTTP smoke all passed in LOOP 7. |
+| Tests, lint, compile, smoke          |      4 | PASS | 2026-07-04 bug-prevention run: compile and Ruff pass, 214 tests pass, HTTP smoke is 200/200/401. |
 | README, report, defense docs         |      2 | PARTIAL | Docs updated with physical-validation package; final defense remains PARTIAL until evidence files exist. |
 | Total                                |    100 | 96/100 capped | Automated implementation gates pass; missing external physical Windows evidence prevents 100/100. |
 
 ## Hard Gate Result
+
+- Relay exact-consent authorization is single-use at the forward boundary: PASS.
+- Agent consent decisions cannot be written by browser JavaScript: PASS.
+- Live-screen start and stop each require consent and dispatch through the relay: PASS.
+- Command/result correlation, reconnect replacement, machine pinning, and exact command-ID consent: PASS.
+- Keylogger timer/session teardown, PID reuse, Windows path bounds, and selected webcam snapshot: PASS.
 
 - No skipped compile: PASS.
 - No skipped Ruff: PASS.

@@ -12,8 +12,8 @@ class TokenOut(BaseModel):
 
 
 class LoginIn(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=1024)
 
 
 class MachineOut(BaseModel):
@@ -141,11 +141,6 @@ class ConsentRequestIn(BaseModel):
     command_id: str | None = None
     command_payload: dict[str, Any] = Field(default_factory=dict)
     ttl_seconds: int = Field(default=300, ge=1, le=3600)
-
-
-class ConsentDecisionIn(BaseModel):
-    decision: str
-    decided_by: str = "agent"
 
 
 class ConsentRequestOut(BaseModel):

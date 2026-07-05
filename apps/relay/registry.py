@@ -26,6 +26,9 @@ class RelayRegistry:
         self.statuses: dict[str, str] = {}
 
     async def register_agent(self, machine_id: str, websocket: WebSocket) -> None:
+        previous = self.agents.get(machine_id)
+        if previous is not None and previous is not websocket:
+            await previous.close(code=1000, reason="replaced by newer agent connection")
         self.agents[machine_id] = websocket
         self.last_heartbeat[machine_id] = datetime.now(timezone.utc)
         self.statuses[machine_id] = "online"
@@ -79,6 +82,9 @@ class RelayRegistry:
 
     def agent_for(self, machine_id: str) -> WebSocket | None:
         return self.agents.get(machine_id)
+
+    def is_current_agent(self, machine_id: str, websocket: WebSocket) -> bool:
+        return self.agents.get(machine_id) is websocket
 
     def subscribers_for(self, machine_id: str) -> set[WebSocket]:
         return set(self.subscribers.get(machine_id, set()))

@@ -1,5 +1,29 @@
 # Feature Progress
 
+## Vietnamese Server/Client Guide (2026-07-05)
+
+- Added `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md` with complete Server setup, secure enrollment, EXE/source Client launch, consent-driven operation, troubleshooting, shutdown, demo, and physical-evidence steps.
+- Corrected stale README/setup references to implicit admin seeding and the removed `admin123` default.
+
+## Bug Prevention Pass (2026-07-04)
+
+- Added invariant, threat, bug-class, and test-gap registries.
+- Prevented out-of-order result routing, stale agent sockets, cross-machine agent envelopes, and cross-origin admin WebSockets.
+- Bound consent to exact raw payload plus command ID and retained single-use execution consumption.
+- Added safe login throttling, explicit credential bootstrap, audit redaction/bounds, PID-reuse checks, process metric normalization, Windows path/size bounds, selected webcam snapshots, Keylogger independent TTL/one-session/disconnect cleanup, and invalid environment fallbacks.
+- Final verification: compile PASS, Ruff PASS, 214 tests PASS, smoke 200/200/401, EXE build/help PASS.
+- Physical Windows evidence remains absent; score is still capped at 96/100.
+
+## Final Defense Re-audit (2026-07-04)
+
+- Closed direct controller-WebSocket consent bypass and replay by consuming exact approved consent at the relay/API boundary.
+- Moved local consent decision recording from browser JavaScript to the authenticated agent relay flow.
+- Added distinct live-screen start/stop consent and fixed UI command dispatch.
+- Aligned `.env.example` with real mode and the exact five-app whitelist.
+- Fixed Windows application executable paths containing spaces.
+- Final verification: compile PASS, Ruff PASS, 154 tests PASS, smoke 200/200/401, EXE build PASS, EXE help PASS.
+- Score remains capped at 96/100 because all required physical Windows evidence files are missing.
+
 ## Loop Engineering Pass (2026-06-23)
 
 - Raised the automated implementation state from the 74/100 audit baseline to a 96/100 capped state.

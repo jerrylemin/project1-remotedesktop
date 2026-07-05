@@ -25,7 +25,7 @@ ruff check .
 python -m pytest -q
 ```
 
-Result: PASS. Final zero-exit logs are `artifacts/loop/loop11_compile.txt`, `artifacts/loop/loop11_ruff.txt`, and `artifacts/loop/loop11_pytest.txt`; pytest reports 147 passed.
+Result: PASS. Latest zero-exit logs are under `artifacts/bug_prevention/logs/`; pytest reports 214 passed.
 
 ## Windows Packaging Block
 
@@ -69,6 +69,22 @@ Result: PASS. `/health` returned HTTP 200, `/admin/login` returned HTTP 200, and
 Current score: 96/100
 
 Missing external condition: a separate authorized Windows lab run with a real controlled machine, visible local consent popup, real `X:\Remote` folders, real webcam enumeration, Keylogger Lab Module TTL/stop behavior, and saved audit screenshots.
+
+## 2026-07-04 final defense audit
+
+- Sensitive relay commands now consume one matching approved exact-payload consent before forwarding, so direct controller WebSocket bypass and approval replay are blocked.
+- Consent decisions are recorded from the machine-authenticated relay flow; the browser decision endpoint was removed.
+- Live screen start and stop now have distinct consent gates and the UI dispatches their returned commands.
+- `.env.example` defaults to real mode and the exact five-application whitelist.
+- Windows application paths with spaces are passed as native subprocess argument arrays.
+
+## 2026-07-04 bug-prevention audit
+
+- Added command-ID result correlation, stale-agent replacement, authenticated machine-envelope pinning, and admin WebSocket origin enforcement.
+- Consent now hashes exact raw canonical payload values, propagates command IDs, and consumes the matching approval once.
+- Added PID-reuse prevention, resilient process metrics, bounded Windows remote-file reads, reserved-name rejection, and exact webcam snapshot device handling.
+- Keylogger Lab now defaults to deny, has an independent TTL timer, permits one session, and tears down on disconnect.
+- Removed implicit/printed default admin passwords, added bounded login throttling, expanded audit redaction, and bounded metadata.
 
 Exact next command for user:
 

@@ -7,6 +7,8 @@ from apps.api.models import Role, User
 from apps.api.security import create_access_token, hash_password, verify_password
 from shared.enums import ROLE_PERMISSIONS
 
+DUMMY_PASSWORD_HASH = hash_password("telepc-unused-dummy-password")
+
 
 async def ensure_roles(db: AsyncSession) -> None:
     for role_name, permissions in ROLE_PERMISSIONS.items():
@@ -31,7 +33,9 @@ async def create_user(db: AsyncSession, username: str, password: str, email: str
 async def authenticate(db: AsyncSession, username: str, password: str) -> tuple[User, str] | None:
     result = await db.execute(select(User).where(User.username == username))
     user = result.scalar_one_or_none()
-    if not user or not user.is_active or not verify_password(password, user.password_hash):
+    password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
+    password_valid = verify_password(password, password_hash)
+    if not user or not user.is_active or not password_valid:
         return None
     return user, create_access_token(user.username, {"uid": user.id})
 

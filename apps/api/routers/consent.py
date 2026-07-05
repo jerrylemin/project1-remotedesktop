@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.api.db import get_db
 from apps.api.deps import require_machine_access, require_permission
 from apps.api.models import User
-from apps.api.schemas import ConsentDecisionIn, ConsentRequestIn, ConsentRequestOut
-from apps.api.services.consent import create_consent_request, record_consent_decision
+from apps.api.schemas import ConsentRequestIn, ConsentRequestOut
+from apps.api.services.consent import create_consent_request
 from apps.api.services.machine import get_machine
 from shared.enums import Permission
 
@@ -51,21 +51,5 @@ async def request_machine_consent(
         command_id=body.command_id,
         command_payload=body.command_payload,
     )
-    await db.commit()
-    return consent_out(request)
-
-
-@router.post("/consent-requests/{consent_id}/decision", response_model=ConsentRequestOut)
-async def decide_machine_consent(
-    consent_id: str,
-    body: ConsentDecisionIn,
-    db: AsyncSession = Depends(get_db),
-) -> ConsentRequestOut:
-    try:
-        request = await record_consent_decision(db, consent_id, body.decision, body.decided_by)
-    except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="consent request not found") from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     await db.commit()
     return consent_out(request)

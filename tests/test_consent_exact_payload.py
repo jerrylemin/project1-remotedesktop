@@ -5,7 +5,6 @@ import pytest
 from apps.api.db import SessionLocal
 from apps.api.models import Machine
 from apps.api.services.consent import (
-    canonicalize_command_payload,
     compute_command_payload_hash,
     create_consent_request,
     record_consent_decision,
@@ -80,9 +79,54 @@ async def test_approved_process_pid_cannot_kill_other_pid(clean_db) -> None:
             await require_active_consent(db, "m1", "PROCESS_KILL", "1", {"pid": 456, "name": "notepad.exe", "confirm": True})
 
 
-def test_payload_hash_redacts_secrets() -> None:
-    canonical = canonicalize_command_payload({"token": "secret", "safe": "ok"})
+def test_payload_hash_distinguishes_secret_values() -> None:
+    assert compute_command_payload_hash("FILE_DOWNLOAD", "m1", "1", {"token": "a"}) != compute_command_payload_hash(
+        "FILE_DOWNLOAD", "m1", "1", {"token": "b"}
+    )
 
-    assert "secret" not in canonical
-    assert "[REDACTED]" in canonical
-    assert compute_command_payload_hash("FILE_DOWNLOAD", "m1", "1", {"token": "a"}) == compute_command_payload_hash("FILE_DOWNLOAD", "m1", "1", {"token": "b"})
+
+@pytest.mark.parametrize(
+    ("left", "right"),
+    [
+        ({"name": "chrome"}, {"name": "notepad"}),
+        ({"pid": 1}, {"pid": 2}),
+        ({"root_path": "C:\\Remote"}, {"root_path": "D:\\Remote"}),
+        ({"relative_path": "a.txt"}, {"relative_path": "b.txt"}),
+        ({"device_id": "camera-0"}, {"device_id": "camera-1"}),
+        ({"ttl_seconds": 30}, {"ttl_seconds": 60}),
+        ({"pid": 1}, {"pid": "1"}),
+        ({"name": "é"}, {"name": "e\u0301"}),
+        ({"name": "chrome"}, {"name": "chrome", "extra": True}),
+    ],
+)
+def test_consent_fuzz_rejects_every_payload_difference(left: dict, right: dict) -> None:
+    assert compute_command_payload_hash("ACTION", "m1", "1", left) != compute_command_payload_hash("ACTION", "m1", "1", right)
+
+
+def test_consent_hash_is_stable_for_reordered_json_but_not_other_identity() -> None:
+    left = compute_command_payload_hash("ACTION", "m1", "1", {"a": 1, "b": 2})
+    assert left == compute_command_payload_hash("ACTION", "m1", "1", {"b": 2, "a": 1})
+    assert left != compute_command_payload_hash("ACTION", "m2", "1", {"a": 1, "b": 2})
+    assert left != compute_command_payload_hash("ACTION", "m1", "2", {"a": 1, "b": 2})
+
+
+async def test_approved_consent_cannot_authorize_different_command_id(clean_db) -> None:
+    await seed_machine()
+    payload = {"name": "chrome", "confirm": True}
+    async with SessionLocal() as db:
+        consent = await create_consent_request(
+            db,
+            machine_id="m1",
+            command_type="APPLICATION_START",
+            requested_by="1",
+            reason="test",
+            ttl_seconds=60,
+            command_id="cmd-1",
+            command_payload=payload,
+        )
+        await record_consent_decision(db, consent.id, "approved", "agent:m1")
+        await db.commit()
+
+    async with SessionLocal() as db:
+        with pytest.raises(PermissionError, match="consent_required"):
+            await require_active_consent(db, "m1", "APPLICATION_START", "1", payload, command_id="cmd-2")

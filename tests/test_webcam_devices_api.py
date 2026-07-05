@@ -35,7 +35,9 @@ async def test_webcam_devices_requires_approved_consent(api_client, admin_token:
 
     accepted = await api_client.get("/api/machines/m1/webcam/devices", headers=headers)
     assert accepted.status_code == 200
-    assert accepted.json()["command"] == {"action": "webcam_devices"}
+    command = accepted.json()["command"]
+    assert command.pop("_command_id") == consent.command_id
+    assert command == {"action": "webcam_devices"}
 
 
 async def test_webcam_start_passes_selected_device(api_client, admin_token: str) -> None:
@@ -69,4 +71,6 @@ async def test_webcam_stop_requires_approved_consent(api_client, admin_token: st
 
     accepted = await api_client.post("/api/machines/m1/webcam/stop", headers=headers, json={"consent": True})
     assert accepted.status_code == 200
-    assert accepted.json()["command"] == {"action": "webcam", "start": False, "consent": True}
+    command = accepted.json()["command"]
+    assert command.pop("_command_id") == consent.command_id
+    assert command == {"action": "webcam", "start": False, "consent": True}

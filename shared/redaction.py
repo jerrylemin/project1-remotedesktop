@@ -6,6 +6,9 @@ from typing import Any
 SENSITIVE_KEYS = {
     "password",
     "token",
+    "secret",
+    "machine_secret",
+    "authorization",
     "session_raw_id",
     "keystroke_content",
     "cookie",

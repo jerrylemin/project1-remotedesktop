@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -11,6 +12,13 @@ def test_default_client_mode_is_real() -> None:
     config = parse_client_args([])
 
     assert config.mode == "real"
+
+
+def test_example_environment_keeps_production_defaults() -> None:
+    example = Path(".env.example").read_text(encoding="utf-8")
+
+    assert "AGENT_MODE=real" in example
+    assert "APP_ALLOWLIST=zalo,discord,vscode,chrome,notepad" in example
 
 
 def test_real_mode_without_confirmation_does_not_enable_real_input_power() -> None:

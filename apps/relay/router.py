@@ -4,7 +4,15 @@ import os
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from apps.relay.api_client import active_control_session, release_control_session, update_machine_status, validate_ws_ticket
+from apps.relay.api_client import (
+    active_control_session,
+    authorize_command,
+    record_agent_consent_decision,
+    release_control_session,
+    update_machine_status,
+    validate_ws_ticket,
+)
+from apps.relay.config import get_relay_settings
 from apps.relay.audit_bridge import audit_bridge
 from apps.relay.auth import validate_agent_secret
 from apps.relay.protocol import error_message, parse_message
@@ -42,6 +50,51 @@ CONTROL_REQUIRED_ACTIONS = {
 }
 
 
+def agent_message_matches_machine(authenticated_machine_id: str, envelope_machine_id: str | None) -> bool:
+    return envelope_machine_id in {None, authenticated_machine_id}
+
+
+def admin_origin_allowed(origin: str | None, allowed_origins: set[str]) -> bool:
+    return origin is None or origin in allowed_origins
+
+
+def command_consent_binding(payload: dict) -> tuple[str, dict] | None:
+    action = str(payload.get("action") or "")
+    if action == "start_application":
+        return "APPLICATION_START", {"name": payload.get("name") or payload.get("app_key"), "confirm": bool(payload.get("confirm"))}
+    if action == "stop_application":
+        return "APPLICATION_STOP", {"name": payload.get("name"), "confirm": bool(payload.get("confirm"))}
+    if action == "stop_process":
+        return "PROCESS_KILL", {"pid": int(payload.get("pid") or 0), "name": payload.get("name"), "confirm": bool(payload.get("confirm"))}
+    if action == "screen_start":
+        return "LIVE_SCREEN_START", {"mode": payload.get("mode") or "live", "consent": bool(payload.get("consent"))}
+    if action == "screen_stop":
+        return "LIVE_SCREEN_STOP", {"mode": payload.get("mode") or "live", "consent": bool(payload.get("consent"))}
+    if action == "capture_screen":
+        return "SCREENSHOT", {"mode": "screenshot", "consent": bool(payload.get("consent"))}
+    if action == "webcam_devices":
+        return "WEBCAM_ENUMERATE", {}
+    if action == "webcam":
+        command_type = "WEBCAM_START" if payload.get("start") else "WEBCAM_STOP"
+        return command_type, {"consent": bool(payload.get("consent")), "device_id": payload.get("device_id")}
+    if action == "webcam_snapshot":
+        return "WEBCAM_START", {"consent": bool(payload.get("consent")), "device_id": payload.get("device_id")}
+    if action == "keylogger_start":
+        return "KEYLOGGER_START", {"session_id": payload.get("session_id"), "ttl_seconds": int(payload.get("ttl_seconds") or 60), "consent": bool(payload.get("consent"))}
+    if action in {"keylogger_stop", "keylogger_export"}:
+        return action.upper(), {"session_id": payload.get("session_id"), "consent": bool(payload.get("consent"))}
+    if action == "remote_files_list":
+        return "FILE_LIST", {"root_path": payload.get("root_path"), "relative_path": payload.get("relative_path") or "", "consent": bool(payload.get("consent"))}
+    if action == "remote_file_download":
+        return "FILE_DOWNLOAD", {"root_path": payload.get("root_path"), "relative_path": payload.get("relative_path") or "", "consent": bool(payload.get("consent"))}
+    if action == "file_get":
+        return "FILE_DOWNLOAD", {"path": payload.get("path")}
+    if action == "power" and str(payload.get("power_action") or "").lower() in {"restart", "shutdown"}:
+        power_action = str(payload["power_action"]).lower()
+        return f"POWER_{power_action.upper()}", {"action": power_action, "confirm": bool(payload.get("confirm")), "reason": str(payload.get("reason") or "")}
+    return None
+
+
 async def has_active_controller_lock(machine_id: str, user_id: str | int | None) -> bool:
     active = await active_control_session(machine_id)
     return active is not None and str(active.get("controller_user_id")) == str(user_id)
@@ -76,10 +129,20 @@ async def agent_ws(websocket: WebSocket) -> None:
         await websocket.send_json(make_envelope("ack", machine_id=machine_id, payload={"role": "agent"}))
         while True:
             envelope = parse_message(await websocket.receive_json())
+            if not registry.is_current_agent(machine_id or "", websocket):
+                continue
+            if not agent_message_matches_machine(machine_id or "", envelope.machine_id):
+                continue
             if envelope.type == EnvelopeType.FRAME:
                 for subscriber in registry.subscribers_for(envelope.machine_id or machine_id):
                     await registry.send_json_safe(subscriber, envelope.model_dump(mode="json"))
             elif envelope.type in {EnvelopeType.COMMAND_RESULT, EnvelopeType.JOB_STATUS, EnvelopeType.AUDIT_EVENT}:
+                if envelope.type == EnvelopeType.COMMAND_RESULT:
+                    result = envelope.payload.get("result") or {}
+                    consent_id = str(result.get("consent_id") or "")
+                    decision = str(result.get("decision") or "")
+                    if consent_id and decision and not await record_agent_consent_decision(machine_id or "", consent_id, decision):
+                        envelope = parse_message(error_message("agent consent decision could not be recorded", machine_id=machine_id))
                 for subscriber in registry.subscribers_for(envelope.machine_id or machine_id):
                     await registry.send_json_safe(subscriber, envelope.model_dump(mode="json"))
             elif envelope.type == EnvelopeType.HEARTBEAT:
@@ -96,6 +159,9 @@ async def agent_ws(websocket: WebSocket) -> None:
 @router.websocket("/admin")
 @router.websocket("/ws/admin")
 async def admin_ws(websocket: WebSocket) -> None:
+    if not admin_origin_allowed(websocket.headers.get("origin"), get_relay_settings().origin_set):
+        await websocket.close(code=1008, reason="origin not allowed")
+        return
     await websocket.accept()
     try:
         query_ticket = websocket.query_params.get("ticket")
@@ -148,11 +214,11 @@ async def admin_ws(websocket: WebSocket) -> None:
                 )
             elif envelope.type in {EnvelopeType.COMMAND, EnvelopeType.INPUT_EVENT, EnvelopeType.FILE_DISPATCH}:
                 if not machine_id or not registry.is_controller(websocket, machine_id):
-                    await websocket.send_json(error_message("observer_only", machine_id=machine_id))
+                    await websocket.send_json(error_message("observer_only", machine_id=machine_id, session_id=envelope.session_id))
                     audit_bridge.enqueue({"event_type": "control_denied", "summary": "Observer command rejected", "machine_id": machine_id, "actor_type": "admin"})
                     continue
                 if command_requires_control(envelope.type, envelope.payload) and not await has_active_controller_lock(machine_id, claims.get("user_id")):
-                    await websocket.send_json(error_message("controller lock required", machine_id=machine_id))
+                    await websocket.send_json(error_message("controller lock required", machine_id=machine_id, session_id=envelope.session_id))
                     audit_bridge.enqueue(
                         {
                             "event_type": "control_denied",
@@ -173,9 +239,28 @@ async def admin_ws(websocket: WebSocket) -> None:
                             "metadata": {"event": envelope.payload.get("event"), "count": 1},
                         }
                     )
+                binding = command_consent_binding(envelope.payload) if envelope.type == EnvelopeType.COMMAND else None
+                if binding and not await authorize_command(
+                    machine_id,
+                    claims.get("user_id"),
+                    str(envelope.payload.get("_command_id") or ""),
+                    binding[0],
+                    binding[1],
+                ):
+                    await websocket.send_json(error_message("approved exact consent required", machine_id=machine_id, session_id=envelope.session_id))
+                    audit_bridge.enqueue(
+                        {
+                            "event_type": "consent_blocked",
+                            "summary": f"Relay blocked {binding[0]} without matching approved consent",
+                            "machine_id": machine_id,
+                            "actor_type": "admin",
+                            "actor_user_id": int(claims["user_id"]) if str(claims.get("user_id", "")).isdigit() else None,
+                        }
+                    )
+                    continue
                 agent = registry.agent_for(machine_id)
                 if agent is None:
-                    await websocket.send_json(error_message("agent offline", machine_id=machine_id))
+                    await websocket.send_json(error_message("agent offline", machine_id=machine_id, session_id=envelope.session_id))
                     continue
                 await agent.send_json(envelope.model_dump(mode="json"))
             elif envelope.type == EnvelopeType.HEARTBEAT:

@@ -1,5 +1,7 @@
 # TelePC Remote Desktop Lab
 
+Hướng dẫn triển khai hai máy bằng tiếng Việt: [`docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md`](docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md).
+
 TelePC is a lab remote desktop control system for authorized machines. It uses a FastAPI admin/API server, a WebSocket relay, and a consent-visible Python client agent.
 
 ## Safety Scope
@@ -42,14 +44,11 @@ py -3.12 -m pip install -r requirements.txt
 py -3.12 scripts/create_admin.py
 ```
 
-Default demo admin:
-
-- Username: `admin`
-- Password: `admin123`
+The admin creation script prompts securely for a password. `main.py` never creates or prints a default password; use `--password` or `TELEPC_BOOTSTRAP_ADMIN_PASSWORD` only for an explicit one-time bootstrap.
 
 ## Run
 
-Production-safe startup, one terminal. By default this listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, seeds the admin, starts the API, and starts the relay. It does not start demo agents:
+Production-safe startup, one terminal. By default this listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, preserves existing users, starts the API, and starts the relay. It does not start demo agents:
 
 ```powershell
 python main.py
@@ -118,8 +117,8 @@ Admin login sets an HttpOnly session cookie. Browser JavaScript does not store t
 
 ## Demo Flow
 
-1. Start API and relay with `python main.py`.
-2. Log in at `/admin/login` with `admin` / `admin123`.
+1. Create an admin with `python scripts/create_admin.py`, then start API and relay with `python main.py`.
+2. Log in at `/admin/login` with the credentials you created.
 3. Build and run `TelePCClient.exe` or `client.py` on an authorized lab machine.
 4. Open `/admin/dashboard` and review online machines, active sessions, commands today, alerts, and recent audit logs.
 5. Open `/admin/machines`, search/filter machines, then click Manage.
@@ -163,7 +162,7 @@ py -3.12 -m compileall .
 py -3.12 -m pytest -q
 ```
 
-Latest local result in the loop engineering pass: `147 passed`.
+Latest local result in the bug-prevention pass: `214 passed`.
 ## Real Machine Completion Pass
 
 ### Quick Start

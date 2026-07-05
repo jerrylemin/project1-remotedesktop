@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from apps.relay.main import app
+from apps.relay.router import command_consent_binding
 from shared.protocol import make_envelope
 
 
@@ -14,6 +15,17 @@ def test_ws_without_auth_is_rejected(monkeypatch) -> None:
     with TestClient(app) as client, client.websocket_connect("/ws/admin") as admin:
         admin.send_json(make_envelope("heartbeat"))
         assert admin.receive_json()["type"] == "error"
+
+
+def test_sensitive_command_binding_uses_exact_execution_payload() -> None:
+    assert command_consent_binding({"action": "start_application", "app_key": "chrome", "confirm": True}) == (
+        "APPLICATION_START",
+        {"name": "chrome", "confirm": True},
+    )
+    assert command_consent_binding({"action": "screen_stop", "mode": "live", "consent": True}) == (
+        "LIVE_SCREEN_STOP",
+        {"mode": "live", "consent": True},
+    )
 
 
 def test_expired_ticket_rejected(monkeypatch) -> None:
@@ -98,3 +110,38 @@ def test_controller_can_send_command(monkeypatch) -> None:
             admin.send_json(make_envelope("command", machine_id="m1", payload={"action": "list_processes"}))
             forwarded = agent.receive_json()
             assert forwarded["type"] == "command"
+
+
+def test_controller_cannot_bypass_sensitive_command_consent(monkeypatch) -> None:
+    async def fake_validate(ticket: str):
+        return {"user_id": 1, "username": "admin", "can_control": True, "permissions": ["machines:control"]}
+
+    async def noop_status(*args, **kwargs):
+        return None
+
+    async def accept_agent(machine_id: str, machine_secret: str) -> bool:
+        return True
+
+    async def fake_active(machine_id: str):
+        return {"id": "s1", "machine_id": machine_id, "controller_user_id": 1}
+
+    async def deny_command(*args, **kwargs):
+        return False
+
+    monkeypatch.setattr("apps.relay.router.validate_ws_ticket", fake_validate)
+    monkeypatch.setattr("apps.relay.router.update_machine_status", noop_status)
+    monkeypatch.setattr("apps.relay.router.validate_agent_secret", accept_agent)
+    monkeypatch.setattr("apps.relay.router.active_control_session", fake_active)
+    monkeypatch.setattr("apps.relay.router.authorize_command", deny_command)
+    with TestClient(app) as client:
+        with client.websocket_connect("/ws/agent") as agent, client.websocket_connect("/ws/admin") as admin:
+            agent.send_json(make_envelope("auth", machine_id="m1", payload={"machine_id": "m1", "machine_secret": "secret"}))
+            assert agent.receive_json()["type"] == "ack"
+            admin.send_json(make_envelope("auth", payload={"ws_ticket": "ticket"}))
+            assert admin.receive_json()["type"] == "ack"
+            admin.send_json(make_envelope("subscribe_machine", machine_id="m1", payload={"control": True}))
+            assert admin.receive_json()["type"] == "ack"
+            admin.send_json(make_envelope("command", machine_id="m1", payload={"action": "start_application", "name": "notepad", "confirm": True}))
+            response = admin.receive_json()
+            assert response["type"] == "error"
+            assert "consent" in response["payload"]["detail"]

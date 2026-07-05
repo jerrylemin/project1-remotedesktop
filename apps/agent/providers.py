@@ -32,7 +32,7 @@ class ProcessProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def stop_process(self, pid: int, confirm: bool) -> dict[str, Any]:
+    def stop_process(self, pid: int, confirm: bool, expected_name: str | None = None) -> dict[str, Any]:
         raise NotImplementedError
 
 
@@ -90,7 +90,7 @@ class FakeProcessProvider(ProcessProvider):
     def list_processes(self) -> list[dict[str, Any]]:
         return [{"pid": 101, "name": "fake-editor", "status": "running"}, {"pid": 102, "name": "fake-browser", "status": "sleeping"}]
 
-    def stop_process(self, pid: int, confirm: bool) -> dict[str, Any]:
+    def stop_process(self, pid: int, confirm: bool, expected_name: str | None = None) -> dict[str, Any]:
         if not confirm:
             raise ProviderError("process stop requires confirmation")
         return {"pid": pid, "stopped": True, "fake": True}
@@ -104,8 +104,8 @@ class RealProcessProvider(ProcessProvider):
             raise ProviderError("psutil is not installed; process list unavailable") from exc
         return list_processes()
 
-    def stop_process(self, pid: int, confirm: bool) -> dict[str, Any]:
-        return stop_process(pid, confirm)
+    def stop_process(self, pid: int, confirm: bool, expected_name: str | None = None) -> dict[str, Any]:
+        return stop_process(pid, confirm, expected_name)
 
 
 class FakeAppLauncher(AppLauncher):

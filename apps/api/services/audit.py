@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 from typing import Any
 
 from sqlalchemy import select
@@ -23,16 +24,20 @@ async def record_audit(
     ip_address: str | None = None,
     user_agent: str | None = None,
 ) -> AuditEvent:
+    safe_metadata = redact(metadata or {})
+    encoded_metadata = json.dumps(safe_metadata, ensure_ascii=True, default=str)
+    if len(encoded_metadata) > 16_384:
+        safe_metadata = {"truncated": True, "preview": encoded_metadata[:16_300]}
     event = AuditEvent(
-        event_type=event_type,
-        summary=summary,
-        actor_type=actor_type,
-        machine_id=machine_id,
-        session_id=session_id,
+        event_type=event_type[:80],
+        summary=summary[:255],
+        actor_type=actor_type[:32],
+        machine_id=machine_id[:64] if machine_id else None,
+        session_id=session_id[:64] if session_id else None,
         actor_user_id=actor_user_id,
-        metadata_json=redact(metadata or {}),
-        ip_address=ip_address,
-        user_agent=user_agent,
+        metadata_json=safe_metadata,
+        ip_address=ip_address[:64] if ip_address else None,
+        user_agent=user_agent[:255] if user_agent else None,
     )
     db.add(event)
     await db.flush()

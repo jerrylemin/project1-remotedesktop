@@ -8,6 +8,7 @@ import websockets
 from apps.agent.commands import handle_command
 from apps.agent.config import AgentSettings, get_agent_settings
 from apps.agent.machine_info import collect_machine_info
+from apps.agent.key_capture import reset_key_capture_state
 from apps.agent.providers import ProviderError, build_providers
 from apps.agent.screen import screen_fps
 from apps.agent.webcam import webcam_fps
@@ -80,6 +81,11 @@ async def run_agent(settings: AgentSettings | None = None) -> None:
                         frame_task.cancel()
                     if webcam_task is not None:
                         webcam_task.cancel()
+                    reset_key_capture_state()
+                    try:
+                        providers.webcam.set_webcam(False, True)
+                    except Exception:
+                        pass
         except asyncio.CancelledError:
             raise
         except Exception:

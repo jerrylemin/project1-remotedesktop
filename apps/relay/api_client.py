@@ -68,6 +68,40 @@ async def active_control_session(machine_id: str) -> dict[str, Any] | None:
         return None
 
 
+async def authorize_command(machine_id: str, requested_by: str | int, command_id: str, command_type: str, command_payload: dict[str, Any]) -> bool:
+    settings = get_relay_settings()
+    try:
+        async with httpx.AsyncClient(timeout=3, headers=internal_headers()) as client:
+            response = await client.post(
+                f"{settings.api_url}/internal/commands/authorize",
+                json={
+                    "machine_id": machine_id,
+                    "requested_by": str(requested_by),
+                    "command_id": command_id,
+                    "command_type": command_type,
+                    "command_payload": command_payload,
+                },
+            )
+            return response.status_code == 200
+    except httpx.HTTPError as exc:
+        logger.warning("command authorization failed machine=%s action=%s error=%s", machine_id, command_type, exc)
+        return False
+
+
+async def record_agent_consent_decision(machine_id: str, consent_id: str, decision: str) -> bool:
+    settings = get_relay_settings()
+    try:
+        async with httpx.AsyncClient(timeout=3, headers=internal_headers()) as client:
+            response = await client.post(
+                f"{settings.api_url}/internal/consent-decisions",
+                json={"machine_id": machine_id, "consent_id": consent_id, "decision": decision},
+            )
+            return response.status_code == 200
+    except httpx.HTTPError as exc:
+        logger.warning("consent decision recording failed machine=%s error=%s", machine_id, exc)
+        return False
+
+
 async def release_control_session(machine_id: str, controller_user_id: str | int | None = None) -> None:
     settings = get_relay_settings()
     params: dict[str, Any] = {}

@@ -9,22 +9,29 @@ from PIL import Image, ImageDraw
 from shared.time_utils import utc_iso
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
 def webcam_fps() -> int:
-    value = int(os.getenv("TELEPC_WEBCAM_FPS", "30"))
+    value = _env_int("TELEPC_WEBCAM_FPS", 30)
     return max(1, min(30, value))
 
 
 def webcam_jpeg_quality() -> int:
-    value = int(os.getenv("TELEPC_WEBCAM_JPEG_QUALITY", "25"))
+    value = _env_int("TELEPC_WEBCAM_JPEG_QUALITY", 25)
     return max(25, min(90, value))
 
 
 def webcam_width() -> int:
-    return max(160, min(1920, int(os.getenv("TELEPC_WEBCAM_WIDTH", "640"))))
+    return max(160, min(1920, _env_int("TELEPC_WEBCAM_WIDTH", 640)))
 
 
 def webcam_height() -> int:
-    return max(120, min(1080, int(os.getenv("TELEPC_WEBCAM_HEIGHT", "360"))))
+    return max(120, min(1080, _env_int("TELEPC_WEBCAM_HEIGHT", 360)))
 
 
 def webcam_status(start: bool, consent: bool) -> dict[str, object]:

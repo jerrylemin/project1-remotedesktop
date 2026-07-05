@@ -43,7 +43,9 @@ async def test_remote_file_list_returns_agent_command_after_consent(api_client, 
     )
 
     assert response.status_code == 200
-    assert response.json()["command"] == {
+    command = response.json()["command"]
+    assert command.pop("_command_id") == consent.command_id
+    assert command == {
         "action": "remote_files_list",
         "root_path": "C:\\Remote",
         "relative_path": "subdir",

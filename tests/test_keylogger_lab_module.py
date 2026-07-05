@@ -162,5 +162,7 @@ def test_keylogger_lab_ui_contract() -> None:
     assert "Keylogger Lab Module" in html
     assert "keyboard-input" not in html
     assert "/keylogger/start" in js
+    assert "apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/keylogger/start`" in js
+    assert "keyloggerExpiryTimer" in js
     assert "KEYLOGGER_START" in js
     assert "KEYLOGGER_STOP" in js

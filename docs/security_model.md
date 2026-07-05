@@ -1,5 +1,9 @@
 # Security Model
 
+## Execution-bound consent
+
+Sensitive relay commands are authorized against one approved canonical-payload consent for the controller, machine, and action. Authorization consumes the consent before forwarding, preventing payload substitution and replay. Local popup decisions are persisted only from the machine-authenticated agent relay connection; browser JavaScript cannot approve its own request.
+
 Authentication:
 
 - Admin login returns signed bearer token.

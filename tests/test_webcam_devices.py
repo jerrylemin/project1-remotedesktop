@@ -3,6 +3,7 @@ from __future__ import annotations
 import types
 
 from apps.agent.commands import handle_command
+from apps.agent.providers import build_providers
 from apps.agent.webcam import list_webcam_devices
 
 
@@ -33,3 +34,20 @@ async def test_agent_lists_webcam_devices(monkeypatch, tmp_path) -> None:
     result = await handle_command("m1", {"action": "webcam_devices"}, tmp_path)
 
     assert result["webcam_devices"][0]["device_id"] == "camera-0"
+
+
+async def test_snapshot_uses_consented_device_and_releases_it(tmp_path) -> None:
+    providers = build_providers("fake")
+    calls = []
+    providers.webcam.set_webcam = lambda start, consent, device_id=None: calls.append((start, consent, device_id)) or {}
+    providers.webcam.snapshot = lambda machine_id: {"machine_id": machine_id, "data": "frame"}
+
+    result = await handle_command(
+        "m1",
+        {"action": "webcam_snapshot", "consent": True, "device_id": "camera-2"},
+        tmp_path,
+        providers,
+    )
+
+    assert result["webcam_frame"]["data"] == "frame"
+    assert calls == [(True, True, "camera-2"), (False, True, "camera-2")]

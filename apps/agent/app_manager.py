@@ -11,30 +11,30 @@ ALLOWED_APPLICATIONS: dict[str, dict[str, Any]] = {
     "zalo": {
         "display_name": "Zalo",
         "executable_names": ["Zalo.exe"],
-        "start_paths": [r"C:\Users\{user}\AppData\Local\Programs\Zalo\Zalo.exe"],
+        "start_paths": [[r"C:\Users\{user}\AppData\Local\Programs\Zalo\Zalo.exe"]],
     },
     "discord": {
         "display_name": "Discord",
         "executable_names": ["Discord.exe", "Update.exe"],
         "start_paths": [
-            r"C:\Users\{user}\AppData\Local\Discord\Update.exe --processStart Discord.exe",
-            "Discord.exe",
+            [r"C:\Users\{user}\AppData\Local\Discord\Update.exe", "--processStart", "Discord.exe"],
+            ["Discord.exe"],
         ],
     },
     "vscode": {
         "display_name": "VSCode",
         "executable_names": ["Code.exe"],
-        "start_paths": [r"C:\Users\{user}\AppData\Local\Programs\Microsoft VS Code\Code.exe", "Code.exe"],
+        "start_paths": [[r"C:\Users\{user}\AppData\Local\Programs\Microsoft VS Code\Code.exe"], ["Code.exe"]],
     },
     "chrome": {
         "display_name": "Chrome",
         "executable_names": ["chrome.exe"],
-        "start_paths": [r"C:\Program Files\Google\Chrome\Application\chrome.exe", r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe", "chrome.exe"],
+        "start_paths": [[r"C:\Program Files\Google\Chrome\Application\chrome.exe"], [r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"], ["chrome.exe"]],
     },
     "notepad": {
         "display_name": "Notepad",
         "executable_names": ["notepad.exe"],
-        "start_paths": ["notepad.exe"],
+        "start_paths": [["notepad.exe"]],
     },
 }
 
@@ -105,8 +105,7 @@ def _allowed_command(name: str) -> list[str] | None:
         return None
     user = os.environ.get("USERNAME") or os.environ.get("USER") or ""
     for template in app["start_paths"]:
-        command = template.format(user=user)
-        parts = command.split()
+        parts = [part.format(user=user) for part in template]
         executable = parts[0]
         if "\\" not in executable or Path(executable).exists():
             return parts

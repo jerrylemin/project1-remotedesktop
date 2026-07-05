@@ -111,7 +111,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-port", type=int, default=8000, help="API port.")
     parser.add_argument("--relay-port", type=int, default=8001, help="Relay port.")
     parser.add_argument("--username", default="admin", help="Demo admin username to seed.")
-    parser.add_argument("--password", default="admin123", help="Demo admin password to seed.")
+    parser.add_argument("--password", default=os.getenv("TELEPC_BOOTSTRAP_ADMIN_PASSWORD"), help="Optional one-time admin password; omit to preserve existing users.")
     parser.add_argument("--no-agents", action="store_true", help="Deprecated alias for the production-safe default.")
     parser.add_argument("--demo-agents", action="store_true", help="Start fake demo agents and seed fake demo machines.")
     parser.add_argument("--skip-firewall", action="store_true", help="Do not try to add Windows Firewall rules.")
@@ -131,9 +131,12 @@ def main() -> int:
             ensure_windows_firewall_rule(f"TelePC API {args.api_port}", args.api_port)
             ensure_windows_firewall_rule(f"TelePC Relay {args.relay_port}", args.relay_port)
 
-        print("[telepc] preparing database and admin user", flush=True)
-        asyncio.run(seed_admin(args.username, args.password, include_demo_machines=args.demo_agents))
-        print(f"[telepc] admin ready: {args.username} / {args.password}", flush=True)
+        if args.password:
+            print("[telepc] preparing database and admin user", flush=True)
+            asyncio.run(seed_admin(args.username, args.password, include_demo_machines=args.demo_agents))
+            print(f"[telepc] admin ready: {args.username}", flush=True)
+        else:
+            print("[telepc] no bootstrap password supplied; preserving existing admin users", flush=True)
 
         api_url = f"http://{local_host}:{args.api_port}"
         relay_url = f"ws://{local_host}:{args.relay_port}"
@@ -166,7 +169,7 @@ def main() -> int:
         for ip in local_lan_ips():
             print(f"[telepc] LAN URL: http://{ip}:{args.api_port}/admin/login", flush=True)
             print(f"[telepc] Test machine command: py -3.12 client.py --server {ip} --machine-id LAB-PC-REAL-01", flush=True)
-        print(f"[telepc] Login: {args.username} / {args.password}", flush=True)
+        print("[telepc] Create an admin with scripts/create_admin.py if needed.", flush=True)
         print("[telepc] Press Ctrl+C to stop TelePC.", flush=True)
         print("", flush=True)
 

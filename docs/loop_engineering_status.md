@@ -41,7 +41,7 @@ Automated verification:
 |---|---|---|
 | `python -m compileall .` | PASS | `artifacts/loop/loop11_compile.txt` |
 | `ruff check .` | PASS | `artifacts/loop/loop11_ruff.txt` |
-| `python -m pytest -q` | PASS, 147 passed | `artifacts/loop/loop11_pytest.txt` |
+| `py -3.12 -m pytest -q` | PASS, 154 passed | `artifacts/final_10_10/logs/pytest.txt` |
 | HTTP smoke | PASS, `/health` 200, `/admin/login` 200, `/api/machines` 401 | `artifacts/loop/loop11_smoke.txt` |
 | `.\scripts\build_client_exe.ps1` | PASS | `dist\TelePCClient.exe` |
 | `Test-Path .\dist\TelePCClient.exe` | PASS, `True` | `artifacts/loop/loop11_exe_test_path.txt` |

@@ -37,25 +37,29 @@ if (-not (Test-Path $notes)) {
     @"
 # TelePC Physical Validation Notes
 
-Date:
+Date/time:
 Operator:
-Controller machine:
-Controlled machine:
-Client artifact:
+Admin machine:
+Client machine:
+Client EXE path:
+API command:
+Relay command:
+Login user:
 
 Results:
 
-- Connected real machine:
+- Machine connected proof:
 - App whitelist:
 - Consent deny:
+- Consent timeout:
 - Consent approve:
 - Process module:
 - File whitelist:
-- Webcam devices:
-- Keylogger Lab Module:
-- Audit logs:
+- Webcam test:
+- Keylogger TTL/stop test:
+- Audit log test:
 
-Issues:
+Known limitations:
 
 "@ | Set-Content -Encoding UTF8 $notes
 }

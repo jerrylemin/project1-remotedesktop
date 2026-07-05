@@ -1,5 +1,39 @@
 # Session Handoff
 
+## Server/Client Usage Guide (2026-07-05)
+
+The detailed Vietnamese operator guide is `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md`. It documents secure one-time enrollment through `/api/enroll-tokens` and `/api/agents/enroll`, then launches the real Client using `MACHINE_TOKEN` so the secret is not exposed in process arguments.
+
+## Bug Prevention Handoff (2026-07-04)
+
+Current score: 96/100, PARTIAL. The automated prevention pass is complete with compile/Ruff, 214 tests, smoke 200/200/401, and rebuilt EXE/help all passing.
+
+Key closures: exact payload plus command-ID single-use consent; correlated results; stale-socket/machine-origin checks; login/default-credential hardening; Keylogger TTL/session teardown; PID reuse; Windows path/read bounds; selected webcam snapshots; bounded/redacted audit data.
+
+Read first: `docs/invariant_registry.md`, `docs/bug_prevention_matrix.md`, `docs/threat_model.md`, `docs/test_gap_report.md`, and `docs/final_bug_prevention_report.md`.
+
+Only blocker: all eight physical validation artifacts are missing. Run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_physical_lab_validation.ps1
+```
+
+## Final Defense Re-audit Handoff (2026-07-04)
+
+Current score: 96/100, PARTIAL. All repo-local automated gates pass; physical Windows evidence remains the only hard blocker.
+
+Latest verification: `py -3.12 -m compileall .`, Ruff, and 154 tests pass; smoke is 200/200/401; `dist/TelePCClient.exe` rebuilt and `--help` passes.
+
+Security closure: relay forwarding now consumes one exact approved consent; consent decisions come from the authenticated agent relay path rather than browser JavaScript; live-screen start/stop are separately consented.
+
+Next command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run_physical_lab_validation.ps1
+```
+
+Required output: the seven named PNGs plus `artifacts/physical_validation/validation_notes.md`.
+
 ## Loop Engineering Pass (2026-06-23)
 
 Current status:

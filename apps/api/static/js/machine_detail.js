@@ -8,6 +8,7 @@ let remoteRoots = [];
 let selectedRemoteRoot = null;
 let selectedRemoteRelativePath = "";
 let keyloggerSessionId = null;
+let keyloggerExpiryTimer = null;
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
 const fmtDate = value => value ? new Date(value).toLocaleString() : "never";
@@ -86,10 +87,6 @@ async function requestLocalConsent(commandType, reason, commandPayload = {}) {
   const response = await wsClient.sendCommandAwait({ action: "consent_request", request: consent });
   const result = response.payload?.result || {};
   const decision = result.decision || "denied";
-  await jsonFetch(`/api/consent-requests/${encodeURIComponent(consent.id)}/decision`, {
-    method: "POST",
-    body: JSON.stringify({ decision, decided_by: `agent:${machineId}` }),
-  });
   await loadAudit();
   if (decision !== "approved") throw new Error(`${commandType} consent denied`);
   return consent;
@@ -383,14 +380,15 @@ document.getElementById("process-table").addEventListener("click", async event =
 
 document.getElementById("start-screen").addEventListener("click", async () => {
   const payload = { mode: "live", consent: true };
-  await requestLocalConsent("LIVE_SCREEN", "Start live screen view", payload);
-  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/start`, { method: "POST", body: JSON.stringify(payload) });
+  await requestLocalConsent("LIVE_SCREEN_START", "Start live screen view", payload);
+  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/screen/start`, { method: "POST", body: JSON.stringify(payload) });
   document.getElementById("screen-mode-label").textContent = "Live mode";
   await loadAudit();
 });
 document.getElementById("stop-screen").addEventListener("click", async () => {
-  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/stop`, { method: "POST", body: JSON.stringify({ mode: "live", consent: true }) });
-  wsClient.close();
+  const payload = { mode: "live", consent: true };
+  await requestLocalConsent("LIVE_SCREEN_STOP", "Stop live screen view", payload);
+  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/screen/stop`, { method: "POST", body: JSON.stringify(payload) });
   document.getElementById("screen-mode-label").textContent = "Screenshot mode";
   document.getElementById("fps-label").textContent = "0 fps";
   await loadAudit();
@@ -398,7 +396,7 @@ document.getElementById("stop-screen").addEventListener("click", async () => {
 document.getElementById("capture-screen").addEventListener("click", async () => {
   const payload = { mode: "screenshot", consent: true };
   await requestLocalConsent("SCREENSHOT", "Capture current screen", payload);
-  await jsonFetch(`/api/machines/${encodeURIComponent(machineId)}/screen/capture`, { method: "POST", body: JSON.stringify(payload) });
+  await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/screen/capture`, { method: "POST", body: JSON.stringify(payload) });
   await loadAudit();
 });
 document.getElementById("screen-fps").addEventListener("change", async event => {
@@ -486,7 +484,14 @@ document.getElementById("keyboard-toggle").addEventListener("click", async () =>
         consent: true,
       };
       await requestLocalConsent("KEYLOGGER_START", "Start keyboard capture on this computer for lab demonstration", payload);
-      await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/keylogger/start`, { method: "POST", body: JSON.stringify(payload) });
+      const result = await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/keylogger/start`, { method: "POST", body: JSON.stringify(payload) });
+      clearTimeout(keyloggerExpiryTimer);
+      const expiresAt = Date.parse(result.session?.expires_at || "");
+      keyloggerExpiryTimer = setTimeout(() => {
+        keyboardRunning = false;
+        document.getElementById("keyboard-state").textContent = "expired";
+        document.getElementById("keyboard-toggle").textContent = "Start Key Capture";
+      }, Math.max(0, (Number.isFinite(expiresAt) ? expiresAt - Date.now() : payload.ttl_seconds * 1000)));
     } catch (error) {
       alert(error.message || error);
       return;
@@ -495,7 +500,8 @@ document.getElementById("keyboard-toggle").addEventListener("click", async () =>
     try {
       const payload = { session_id: keyloggerSessionId, consent: true };
       await requestLocalConsent("KEYLOGGER_STOP", "Stop keyboard capture", payload);
-      await apiCommand(`/api/machines/${encodeURIComponent(machineId)}/keylogger/stop`, { method: "POST", body: JSON.stringify(payload) });
+      await apiCommandAwait(`/api/machines/${encodeURIComponent(machineId)}/keylogger/stop`, { method: "POST", body: JSON.stringify(payload) });
+      clearTimeout(keyloggerExpiryTimer);
     } catch (error) {
       alert(error.message || error);
       return;

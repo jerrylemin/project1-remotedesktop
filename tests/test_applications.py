@@ -40,3 +40,19 @@ def test_missing_whitelist_app_still_appears(monkeypatch) -> None:
     assert chrome["installed"] is False
     assert chrome["running"] is False
     assert chrome["cpu_percent"] == 0.0
+
+
+def test_windows_application_path_with_spaces_stays_one_argument(monkeypatch) -> None:
+    launched = []
+
+    def fake_popen(args, **kwargs):
+        launched.append(args)
+        return types.SimpleNamespace(pid=42)
+
+    monkeypatch.setattr("apps.agent.app_manager.Path.exists", lambda path: str(path).endswith("chrome.exe"))
+    monkeypatch.setattr("apps.agent.app_manager.subprocess.Popen", fake_popen)
+
+    result = start_application("chrome")
+
+    assert result["pid"] == 42
+    assert launched == [[r"C:\Program Files\Google\Chrome\Application\chrome.exe"]]
