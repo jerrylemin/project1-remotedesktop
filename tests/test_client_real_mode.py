@@ -5,13 +5,30 @@ from pathlib import Path
 
 import pytest
 
-from client import apply_lab_real_profile, parse_client_args, require_real_mode_confirmation, set_real_mode_environment
+from client import apply_lab_real_profile, parse_args, parse_client_args, require_real_mode_confirmation, set_real_mode_environment
 
 
 def test_default_client_mode_is_real() -> None:
     config = parse_client_args([])
 
     assert config.mode == "real"
+
+
+def test_missing_machine_token_prompts_securely(monkeypatch) -> None:
+    monkeypatch.delenv("MACHINE_TOKEN", raising=False)
+    monkeypatch.setattr("client.getpass.getpass", lambda _prompt: "registered-machine-secret")
+
+    config = parse_args([])
+
+    assert config.token == "registered-machine-secret"
+
+
+def test_empty_machine_token_is_rejected(monkeypatch) -> None:
+    monkeypatch.delenv("MACHINE_TOKEN", raising=False)
+    monkeypatch.setattr("client.getpass.getpass", lambda _prompt: "   ")
+
+    with pytest.raises(SystemExit, match="Machine secret is required"):
+        parse_args([])
 
 
 def test_example_environment_keeps_production_defaults() -> None:

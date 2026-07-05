@@ -1,5 +1,10 @@
 # Feature Progress
 
+## Secure Client Token Prompt (2026-07-05)
+
+- `client.py` now securely prompts for the registered machine secret when neither `--token` nor `MACHINE_TOKEN` is supplied.
+- Empty input remains rejected; machine-secret verification is unchanged.
+
 ## Minimal Refactor Pass (2026-07-05)
 
 - Removed four unused/pass-through Python modules, two unread settings fields, and two remote-file aliases.

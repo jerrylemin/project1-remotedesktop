@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from dataclasses import dataclass
+import getpass
 import importlib.util
 import os
 import platform
@@ -158,11 +159,14 @@ def set_real_mode_environment(config: ClientConfig) -> None:
     os.environ["TELEPC_REAL_MODE_CONFIRMED"] = REAL_MODE_CONFIRMATION
 
 
-def parse_args() -> ClientConfig:
-    config = parse_client_args()
+def parse_args(argv: list[str] | None = None) -> ClientConfig:
+    config = parse_client_args(argv)
     config = apply_lab_real_profile(config)
     require_real_mode_confirmation(config)
     set_real_mode_environment(config)
+    config.token = config.token or getpass.getpass("Machine secret (input hidden): ").strip()
+    if not config.token:
+        raise SystemExit("Machine secret is required. Enroll this Client first, then paste its machine_secret.")
     return config
 
 
@@ -170,9 +174,6 @@ async def main_async() -> None:
     args = parse_args()
     api_url = args.api_url or f"http://{args.server}:{args.api_port}"
     relay_url = args.relay_url or f"ws://{args.server}:{args.relay_port}"
-
-    if not args.token:
-        raise SystemExit("--token must be non-empty")
 
     if args.mode == "real":
         warn_missing_real_dependencies()

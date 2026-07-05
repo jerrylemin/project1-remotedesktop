@@ -157,6 +157,8 @@ Sau đó chạy:
 py -3.12 client.py --server 192.168.1.10 --machine-id $Machine.machine_id
 ```
 
+Nếu `MACHINE_TOKEN` chưa được đặt, `client.py` sẽ hỏi `Machine secret (input hidden)`. Dán `machine_secret` đã nhận khi enroll rồi nhấn Enter; secret không hiển thị trên màn hình.
+
 Real input và real power tự bật trong chế độ real. Consent, phân quyền và audit log vẫn luôn được áp dụng.
 
 Giữ cửa sổ Client mở. Máy sẽ xuất hiện tại trang `Machines` với trạng thái `online`.
