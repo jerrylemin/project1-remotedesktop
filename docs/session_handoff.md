@@ -1,5 +1,9 @@
 # Session Handoff
 
+## Minimal Refactor Pass (2026-07-05)
+
+Removed four dead/pass-through modules, two unused AgentSettings fields, and two remote-file aliases. No security or public behavior changed. Net source diff: -50 lines; Python source files: 73 to 69. Final verification passed: compile, Ruff, 221 tests, HTTP smoke 200/200/401, rebuilt EXE exists, and EXE help works. See `docs/minimal_refactor_plan.md` and `docs/minimal_refactor_report.md`. Overall score remains capped at 96/100 until physical Windows evidence exists.
+
 ## Presentation Script (2026-07-05)
 
 `SCRIPT_THUYET_TRINH_TELEPC.md` contains a Vietnamese 14-slide speaking script for the final TelePC deck, paced for roughly 7–10 minutes, plus short answers for likely defense questions.

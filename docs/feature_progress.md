@@ -1,5 +1,12 @@
 # Feature Progress
 
+## Minimal Refactor Pass (2026-07-05)
+
+- Removed four unused/pass-through Python modules, two unread settings fields, and two remote-file aliases.
+- Reused the existing input and remote-file implementations directly; no new abstraction or dependency was added.
+- Source diff is net -50 lines and Python source files decreased from 73 to 69.
+- Verification: compile PASS, Ruff PASS, 221 tests PASS, smoke 200/200/401, EXE build/help PASS.
+
 ## One-file Server Startup (2026-07-05)
 
 - `main.py` now detects whether an admin exists after database initialization.

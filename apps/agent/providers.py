@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from apps.agent.app_manager import list_applications, start_application, stop_application
-from apps.agent.input_demo import handle_input_event
+from apps.agent.input_provider import handle_input_event
 from apps.agent.job_runner import command_from_schema, run_job
 from apps.agent.process_manager import list_processes, stop_process
 from apps.agent.sandbox import job_sandbox

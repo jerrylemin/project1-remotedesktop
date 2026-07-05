@@ -27,8 +27,6 @@ class AgentSettings(BaseSettings):
     job_timeout_seconds: int = 30
     runner_allowlist: str = "python,powershell,pwsh,cmd"
     app_allowlist: str = ",".join(APP_ALLOWLIST)
-    enable_real_input: bool = True
-    enable_real_power: bool = True
 
     @property
     def runners(self) -> set[str]:

@@ -121,12 +121,3 @@ def download_file_from_allowed_root(root_path: str, relative_path: str, *, requi
     if len(data) > limit:
         raise ValueError("remote file too large")
     return data
-
-
-def list_files_in_allowed_folder(root_path: str | Path, relative_path: str = "") -> list[dict[str, object]]:
-    return list_files_in_allowed_root(str(root_path), relative_path)
-
-
-def download_allowed_file(root_path: str | Path, relative_path: str) -> tuple[str, bytes]:
-    target = _resolve_relative(root_path, relative_path)
-    return target.name, download_file_from_allowed_root(str(root_path), relative_path)
