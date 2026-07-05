@@ -34,21 +34,19 @@ Use Python 3.11+.
 
 ```powershell
 python -m pip install -r requirements.txt
-python scripts/create_admin.py
 ```
 
 On Windows, if the default `python` is Python 3.10, use the launcher explicitly:
 
 ```powershell
 py -3.12 -m pip install -r requirements.txt
-py -3.12 scripts/create_admin.py
 ```
 
-The admin creation script prompts securely for a password. `main.py` never creates or prints a default password; use `--password` or `TELEPC_BOOTSTRAP_ADMIN_PASSWORD` only for an explicit one-time bootstrap.
+`main.py` initializes the database and securely prompts for the first admin password when no admin exists. It never creates or prints a default password.
 
 ## Run
 
-Production-safe startup, one terminal. By default this listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, preserves existing users, starts the API, and starts the relay. It does not start demo agents:
+Production-safe startup uses one file and one terminal. It initializes the database, creates the first admin interactively when needed, listens on all LAN interfaces, tries to open Windows Firewall for TCP `8000` and `8001`, starts the API, and starts the relay. It does not start demo agents:
 
 ```powershell
 python main.py
@@ -109,7 +107,7 @@ py -3.12 client.py --server <MAIN_MACHINE_IP> --machine-id LAB-PC-REAL-01 --toke
 
 If the main machine is still starting, `client.py` waits and retries instead of exiting immediately.
 
-Keep the client console visible and open. The machine will appear in `/admin/machines`; click Manage from the main machine to control it. The real client remains consent-visible, uses discovered `X:\Remote` file roots only, and keeps real input/power behind explicit lab confirmation.
+Keep the client console visible and open. The machine will appear in `/admin/machines`; click Manage from the main machine to control it. Real input and real power are enabled automatically in real mode, while consent, controller authorization, audit logging, and the `X:\Remote` file boundary remain enforced.
 
 ## Auth Flow
 
@@ -117,8 +115,8 @@ Admin login sets an HttpOnly session cookie. Browser JavaScript does not store t
 
 ## Demo Flow
 
-1. Create an admin with `python scripts/create_admin.py`, then start API and relay with `python main.py`.
-2. Log in at `/admin/login` with the credentials you created.
+1. Run `python main.py`; on the first run, enter and confirm the admin password.
+2. Log in at `/admin/login` with username `admin` and that password.
 3. Build and run `TelePCClient.exe` or `client.py` on an authorized lab machine.
 4. Open `/admin/dashboard` and review online machines, active sessions, commands today, alerts, and recent audit logs.
 5. Open `/admin/machines`, search/filter machines, then click Manage.
@@ -162,14 +160,13 @@ py -3.12 -m compileall .
 py -3.12 -m pytest -q
 ```
 
-Latest local result in the bug-prevention pass: `214 passed`.
+Latest local result: `221 passed`.
 ## Real Machine Completion Pass
 
 ### Quick Start
 
 ```powershell
 py -3.12 -m pip install -r requirements.txt
-py -3.12 scripts/create_admin.py
 py -3.12 main.py
 ```
 
@@ -206,13 +203,13 @@ Test-NetConnection <SERVER_IP> -Port 8001
 | Screen capture | `mss` or `Pillow` ImageGrab | Clear unavailable error if missing in real mode |
 | Processes/applications | `psutil` | Clear unavailable error if missing in real mode |
 | Webcam | `opencv-python` | Clear unavailable error if missing in real mode |
-| Real input | `pyautogui` | Disabled unless `TELEPC_ENABLE_REAL_INPUT=true` |
-| Real power | Windows built-ins | Demo-safe unless `TELEPC_ENABLE_REAL_POWER=true` |
+| Real input | `pyautogui` | Enabled automatically in real mode; disabled during tests/demo-safe execution |
+| Real power | Windows built-ins | Enabled automatically in real mode; consent, reason, delay, and pytest guards remain |
 
 ### Known Limitations
 
 - Physical Windows validation is still required for real screen FPS, real input, webcam, and power commands.
-- Real input and real power are intentionally opt-in environment-gated features.
+- Real input and real power are enabled by default for authorized real-mode machines.
 - Power `lock` and `cancel` require the audit confirmation checkbox but do not require a reason. `restart` and `shutdown` require a reason of at least 5 characters.
 - File dispatch supports inline bytes up to 512 KB; larger files are prepared for signed download URL handoff.
 
@@ -225,7 +222,7 @@ $env:TELEPC_WEBCAM_WIDTH="640"
 $env:TELEPC_WEBCAM_HEIGHT="360"
 ```
 
-Real input and real power are deliberately not enabled by default. To enable them on an authorized lab machine, use the explicit helper:
+Real input and real power are enabled automatically by normal real-mode Client and Server startup. The legacy explicit helper remains available for compatible lab scripts:
 
 ```powershell
 .\scripts\run_lab_real_client.ps1 --server <SERVER_IP> --machine-id LAB-PC-REAL-01 --token <REGISTERED_MACHINE_SECRET>
@@ -266,7 +263,7 @@ In the browser, claim control, open Keylogger Lab Module, click `Start Key Captu
 - Teacher access is machine-grant scoped; admins can access all machines, auditors remain read-only.
 - Sensitive actions create an exact payload-bound consent request and are blocked until the visible controlled-machine agent approves it.
 - Screen frames do not stream on websocket connection; live screen starts only after a consent-approved command.
-- Real input and real power require `TELEPC_ENABLE_REAL_INPUT=true` or `TELEPC_ENABLE_REAL_POWER=true` plus `TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED`; tests force safe mocked behavior.
+- Real-mode startup sets `TELEPC_ENABLE_REAL_INPUT=true`, `TELEPC_ENABLE_REAL_POWER=true`, and `TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED` automatically; tests remain forced into safe mocked behavior.
 
 ## Final Validation Status
 

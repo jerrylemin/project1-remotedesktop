@@ -5,7 +5,10 @@ from typing import Any
 
 
 def real_input_enabled() -> bool:
-    return os.getenv("TELEPC_ENABLE_REAL_INPUT", "false").lower() == "true"
+    configured = os.getenv("TELEPC_ENABLE_REAL_INPUT")
+    if configured is not None:
+        return configured.lower() == "true"
+    return "PYTEST_CURRENT_TEST" not in os.environ
 
 
 def key_code_to_pyautogui(code: str) -> str:

@@ -1,5 +1,20 @@
 # Feature Progress
 
+## One-file Server Startup (2026-07-05)
+
+- `main.py` now detects whether an admin exists after database initialization.
+- The first run securely prompts for and confirms an admin password; later runs start without prompting.
+- Normal Server operation requires only `py -3.12 main.py`; API, relay, LAN firewall setup, and coordinated shutdown are handled together.
+- Replaced the long Server/Client manual with a concise Vietnamese quick-start guide.
+- Verification: focused launcher/auth tests passed, Ruff passed, compile passed, and the full suite passed with 221 tests.
+
+## Automatic Real Control Defaults (2026-07-05)
+
+- Real-mode `client.py` now enables real input and real power automatically without requiring the legacy profile flags.
+- Server child processes receive the same enabled defaults.
+- Direct agent providers default to real input/power outside pytest; tests and demo-safe paths remain protected.
+- Existing consent, controller authorization, audit, power reason, and shutdown-delay controls remain enforced.
+
 ## Vietnamese Server/Client Guide (2026-07-05)
 
 - Added `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md` with complete Server setup, secure enrollment, EXE/source Client launch, consent-driven operation, troubleshooting, shutdown, demo, and physical-evidence steps.

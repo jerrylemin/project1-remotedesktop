@@ -29,8 +29,8 @@ def run_power_action(action: str, reason: str = "", *, real_power: bool | None =
         raise PermissionError("power action requires a reason of at least 5 characters")
     if real_power is None:
         enabled = (
-            os.getenv("TELEPC_ENABLE_REAL_POWER", "false").lower() == "true"
-            and os.getenv("TELEPC_REAL_MODE_CONFIRMED") == "TELEPC_LAB_AUTHORIZED"
+            os.getenv("TELEPC_ENABLE_REAL_POWER", "true").lower() == "true"
+            and os.getenv("TELEPC_REAL_MODE_CONFIRMED", "TELEPC_LAB_AUTHORIZED") == "TELEPC_LAB_AUTHORIZED"
             and "PYTEST_CURRENT_TEST" not in os.environ
         )
     else:

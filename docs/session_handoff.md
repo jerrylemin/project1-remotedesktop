@@ -1,5 +1,17 @@
 # Session Handoff
 
+## Presentation Script (2026-07-05)
+
+`SCRIPT_THUYET_TRINH_TELEPC.md` contains a Vietnamese 14-slide speaking script for the final TelePC deck, paced for roughly 7–10 minutes, plus short answers for likely defense questions.
+
+## One-file Server Startup (2026-07-05)
+
+`py -3.12 main.py` is now the only normal Server startup command. It initializes the database, securely prompts twice for the first admin password when no admin exists, reuses existing admins on later runs, starts API and relay, handles firewall setup, and stops both child processes on `Ctrl+C`. The Vietnamese Server/Client guide was rewritten as a shorter quick-start document. Verification passed: Ruff, compile, launcher help, and 221 tests.
+
+## Automatic Real Input And Power Defaults (2026-07-05)
+
+Normal real-mode Server and Client startup now sets real input, real power, and the authorized-lab confirmation automatically. Direct agent providers also default to enabled outside pytest. Demo/test execution remains safe, and consent, authorization, audit logging, restart/shutdown reasons, and the Windows delay are unchanged.
+
 ## Server/Client Usage Guide (2026-07-05)
 
 The detailed Vietnamese operator guide is `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md`. It documents secure one-time enrollment through `/api/enroll-tokens` and `/api/agents/enroll`, then launches the real Client using `MACHINE_TOKEN` so the secret is not exposed in process arguments.

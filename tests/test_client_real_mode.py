@@ -19,12 +19,23 @@ def test_example_environment_keeps_production_defaults() -> None:
 
     assert "AGENT_MODE=real" in example
     assert "APP_ALLOWLIST=zalo,discord,vscode,chrome,notepad" in example
+    assert "TELEPC_ENABLE_REAL_INPUT=true" in example
+    assert "TELEPC_ENABLE_REAL_POWER=true" in example
+    assert "TELEPC_REAL_MODE_CONFIRMED=TELEPC_LAB_AUTHORIZED" in example
 
 
-def test_real_mode_without_confirmation_does_not_enable_real_input_power() -> None:
+def test_default_real_mode_enables_real_input_and_power(monkeypatch) -> None:
+    monkeypatch.delenv("TELEPC_ENABLE_REAL_INPUT", raising=False)
+    monkeypatch.delenv("TELEPC_ENABLE_REAL_POWER", raising=False)
+    monkeypatch.delenv("TELEPC_REAL_MODE_CONFIRMED", raising=False)
     config = parse_client_args(["--mode", "real"])
 
     require_real_mode_confirmation(config)
+    set_real_mode_environment(config)
+
+    assert os.environ["TELEPC_ENABLE_REAL_INPUT"] == "true"
+    assert os.environ["TELEPC_ENABLE_REAL_POWER"] == "true"
+    assert os.environ["TELEPC_REAL_MODE_CONFIRMED"] == "TELEPC_LAB_AUTHORIZED"
 
 
 def test_demo_mode_requires_allow_demo(monkeypatch) -> None:
@@ -63,9 +74,15 @@ def test_ci_blocks_lab_real(monkeypatch) -> None:
         apply_lab_real_profile(config)
 
 
-def test_invalid_real_confirmation_rejected_when_real_power_requested(monkeypatch) -> None:
+def test_pre_enabled_real_power_does_not_require_confirmation_for_default_real_mode(monkeypatch) -> None:
     monkeypatch.setenv("TELEPC_ENABLE_REAL_POWER", "true")
-    config = parse_client_args(["--mode", "real", "--confirm-real-mode", "wrong"])
+    config = parse_client_args(["--mode", "real"])
+
+    require_real_mode_confirmation(config)
+
+
+def test_invalid_confirmation_is_rejected_for_explicit_lab_profile() -> None:
+    config = parse_client_args(["--profile", "lab-real", "--confirm-real-mode", "wrong"])
 
     with pytest.raises(SystemExit, match="TELEPC_LAB_AUTHORIZED"):
         require_real_mode_confirmation(config)

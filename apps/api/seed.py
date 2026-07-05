@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from apps.api.db import SessionLocal, init_db
-from apps.api.models import Machine, MachineSecret
+from apps.api.models import Machine, MachineSecret, Role, User
 from apps.api.services.auth import create_user, ensure_roles
 from shared.crypto import hash_secret
 from sqlalchemy import select
+
+
+async def admin_user_exists() -> bool:
+    await init_db()
+    async with SessionLocal() as db:
+        admin_id = await db.scalar(
+            select(User.id).join(User.roles).where(Role.name == "admin").limit(1)
+        )
+        return admin_id is not None
 
 
 async def seed_admin(username: str, password: str, *, include_demo_machines: bool = False) -> None:

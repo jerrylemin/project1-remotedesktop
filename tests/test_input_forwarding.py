@@ -3,7 +3,7 @@ from __future__ import annotations
 import types
 
 from apps.agent.ws_client import command_payload_for_envelope
-from apps.agent.input_provider import handle_input_event, key_code_to_pyautogui, scale_coordinates
+from apps.agent.input_provider import handle_input_event, key_code_to_pyautogui, real_input_enabled, scale_coordinates
 from shared.protocol import Envelope
 
 
@@ -16,6 +16,13 @@ def test_input_demo_safe_by_default(monkeypatch) -> None:
     result = handle_input_event({"event": "mouse_click", "x": 10, "y": 20})
     assert result["demo_safe"] is True
     assert result["event"] == "mouse_click"
+
+
+def test_real_input_defaults_to_enabled_outside_tests(monkeypatch) -> None:
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.delenv("TELEPC_ENABLE_REAL_INPUT", raising=False)
+
+    assert real_input_enabled() is True
 
 
 def test_real_pyautogui_call_can_be_monkeypatched(monkeypatch) -> None:

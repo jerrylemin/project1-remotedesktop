@@ -2,23 +2,22 @@
 
 ```powershell
 python -m pip install -r requirements.txt
-python scripts/create_admin.py --username admin
-python scripts/run_api.py
-python scripts/run_relay.py
-python scripts/run_fake_agent.py
+python main.py
 ```
 
-`create_admin.py` prompts securely for the password. For a real two-machine deployment, follow `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md`; fake agents are development-only.
+`main.py` initializes the database, prompts securely for the first admin password, starts API and relay, opens the LAN ports when possible, and stops everything together with `Ctrl+C`. For a real two-machine deployment, follow `docs/HUONG_DAN_SU_DUNG_SERVER_CLIENT.md`.
 
 Admin UI: `http://localhost:8000/admin/dashboard`
 
-Multi-machine fake demo:
+Optional multi-machine fake demo:
 
 ```powershell
 python scripts/run_3_fake_agents.py
 ```
 
 Real Windows agent:
+
+Real input and real power are enabled automatically for authorized real-mode runs. Consent and audit controls remain active.
 
 ```powershell
 python -m pip install "mss>=9.0" "psutil>=6.0" "pynput>=1.7" "opencv-python>=4.10"

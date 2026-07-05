@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import getpass
 import os
 import platform
 import socket
@@ -13,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from apps.api.seed import seed_admin  # noqa: E402
+from apps.api.seed import admin_user_exists, seed_admin  # noqa: E402
 
 
 def local_check_host(host: str) -> str:
@@ -85,6 +86,13 @@ def start_child(name: str, command: list[str], env: dict[str, str] | None = None
     print(f"[telepc] starting {name}: {' '.join(command)}", flush=True)
     child_env = os.environ.copy()
     child_env.update(env or {})
+    child_env.update(
+        {
+            "TELEPC_ENABLE_REAL_INPUT": "true",
+            "TELEPC_ENABLE_REAL_POWER": "true",
+            "TELEPC_REAL_MODE_CONFIRMED": "TELEPC_LAB_AUTHORIZED",
+        }
+    )
     return subprocess.Popen([sys.executable, *command], cwd=ROOT, env=child_env)
 
 
@@ -105,13 +113,32 @@ def stop_children(children: list[tuple[str, subprocess.Popen]]) -> None:
             process.kill()
 
 
+def ensure_admin_ready(username: str, password: str | None, *, include_demo_machines: bool = False) -> None:
+    if asyncio.run(admin_user_exists()):
+        print("[telepc] existing admin account found", flush=True)
+        return
+
+    selected_password = password
+    if not selected_password:
+        print("[telepc] first run: create the admin account", flush=True)
+        selected_password = getpass.getpass("New admin password (minimum 8 characters): ")
+        confirmation = getpass.getpass("Confirm admin password: ")
+        if selected_password != confirmation:
+            raise SystemExit("Admin passwords do not match.")
+    if len(selected_password) < 8:
+        raise SystemExit("Admin password must contain at least 8 characters.")
+
+    asyncio.run(seed_admin(username, selected_password, include_demo_machines=include_demo_machines))
+    print(f"[telepc] admin ready: {username}", flush=True)
+
+
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Start the complete TelePC demo stack.")
+    parser = argparse.ArgumentParser(description="Start the complete TelePC server stack.")
     parser.add_argument("--host", default="0.0.0.0", help="Host used by API and relay. Default accepts LAN clients.")
     parser.add_argument("--api-port", type=int, default=8000, help="API port.")
     parser.add_argument("--relay-port", type=int, default=8001, help="Relay port.")
-    parser.add_argument("--username", default="admin", help="Demo admin username to seed.")
-    parser.add_argument("--password", default=os.getenv("TELEPC_BOOTSTRAP_ADMIN_PASSWORD"), help="Optional one-time admin password; omit to preserve existing users.")
+    parser.add_argument("--username", default="admin", help="Admin username created automatically on the first run.")
+    parser.add_argument("--password", default=os.getenv("TELEPC_BOOTSTRAP_ADMIN_PASSWORD"), help="Optional first-run password; otherwise main.py prompts securely.")
     parser.add_argument("--no-agents", action="store_true", help="Deprecated alias for the production-safe default.")
     parser.add_argument("--demo-agents", action="store_true", help="Start fake demo agents and seed fake demo machines.")
     parser.add_argument("--skip-firewall", action="store_true", help="Do not try to add Windows Firewall rules.")
@@ -131,12 +158,7 @@ def main() -> int:
             ensure_windows_firewall_rule(f"TelePC API {args.api_port}", args.api_port)
             ensure_windows_firewall_rule(f"TelePC Relay {args.relay_port}", args.relay_port)
 
-        if args.password:
-            print("[telepc] preparing database and admin user", flush=True)
-            asyncio.run(seed_admin(args.username, args.password, include_demo_machines=args.demo_agents))
-            print(f"[telepc] admin ready: {args.username}", flush=True)
-        else:
-            print("[telepc] no bootstrap password supplied; preserving existing admin users", flush=True)
+        ensure_admin_ready(args.username, args.password, include_demo_machines=args.demo_agents)
 
         api_url = f"http://{local_host}:{args.api_port}"
         relay_url = f"ws://{local_host}:{args.relay_port}"
@@ -169,7 +191,6 @@ def main() -> int:
         for ip in local_lan_ips():
             print(f"[telepc] LAN URL: http://{ip}:{args.api_port}/admin/login", flush=True)
             print(f"[telepc] Test machine command: py -3.12 client.py --server {ip} --machine-id LAB-PC-REAL-01", flush=True)
-        print("[telepc] Create an admin with scripts/create_admin.py if needed.", flush=True)
         print("[telepc] Press Ctrl+C to stop TelePC.", flush=True)
         print("", flush=True)
 

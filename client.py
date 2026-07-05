@@ -138,11 +138,7 @@ def apply_lab_real_profile(config: ClientConfig) -> ClientConfig:
 
 
 def require_real_mode_confirmation(config: ClientConfig) -> None:
-    real_env_requested = any(
-        os.getenv(name, "").lower() == "true"
-        for name in ("TELEPC_ENABLE_REAL_INPUT", "TELEPC_ENABLE_REAL_POWER")
-    )
-    if config.profile != "lab-real" and not real_env_requested:
+    if config.profile != "lab-real":
         return
     if config.confirm_real_mode != REAL_MODE_CONFIRMATION:
         raise SystemExit(
@@ -152,7 +148,7 @@ def require_real_mode_confirmation(config: ClientConfig) -> None:
 
 
 def set_real_mode_environment(config: ClientConfig) -> None:
-    if config.profile != "lab-real":
+    if config.mode != "real":
         os.environ.pop("TELEPC_ENABLE_REAL_INPUT", None)
         os.environ.pop("TELEPC_ENABLE_REAL_POWER", None)
         os.environ.pop("TELEPC_REAL_MODE_CONFIRMED", None)
